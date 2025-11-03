@@ -32,10 +32,9 @@ $username = $_SESSION['username'];
             </div>
 
             <div class="menu-links">
-                <a href="#">STEGANOGRAFI</a>
-                <a href="#">DECRYPT STEGANOGRAFI</a>
-                <a href="#">ENCRYPT FILE</a>
-                <a href="#">DECRYPT FILE</a>
+                <a href="steganografi.php">STEGANOGRAFI</a>
+                <a href="super_enkripsi.php">SUPER ENKRIPSI</a>
+                <a href="#">ENKRIPSI FILE</a>
             </div>
 
             <div class="logout-btn">
