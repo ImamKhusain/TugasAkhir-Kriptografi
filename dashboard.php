@@ -11,7 +11,7 @@ $username = $_SESSION['username'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | Manajemen Pegawai</title>
+    <title>Dashboard | Aplikasi Kriptografi</title>
 
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -47,11 +47,14 @@ $username = $_SESSION['username'];
     <section class="hero-section d-flex justify-content-center align-items-center text-center">
         <div class="overlay"></div>
         <div class="hero-content text-white">
-            <h1>Selamat Datang</h1>
-            <h2>di Website Manajemen<br>Pegawai Kami!</h2>
+            <div class="decor-line top"></div>
+            <h1>Selamat Mencoba</h1>
+            <h2>Aplikasi Kriptografi Kami!</h2>
+            <div class="decor-line bottom"></div>
         </div>
     </section>
 
+    <!-- Alert Login -->
     <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'login'): ?>
         <div class="alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-5 w-75 text-center fw-semibold" role="alert" style="z-index:9999;">
             <strong>Berhasil Login!</strong> Selamat datang, <?= htmlspecialchars($username); ?>.

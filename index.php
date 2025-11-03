@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Welcome | Aplikasi Kami</title>
+<title>Welcome | Aplikasi Kriptografi</title>
 
 <style>
     body {
@@ -72,8 +72,8 @@
     <div class="card">
         <!-- Ganti src di bawah dengan gambar kamu -->
         <img src="https://i.pinimg.com/736x/c2/ee/c5/c2eec558e6c9f209f35737fc08104d4c.jpg" alt="Logo Aplikasi">
-        <h2><span class="highlight">WELCOME TO APLIKASI</span><br>MANAJEMEN PEGAWAI<br></h2>
-        <p>Aplikasi ini dibuat untuk membantu pengguna dalam mengelola data secara efisien dan mudah digunakan.</p>
+        <h2><span class="highlight">WELCOME TO APLIKASI</span><br>KRIPTOGRAFI<br></h2>
+        <p>Aplikasi ini dibuat untuk membantu pengguna dalam mengenkripsi atau mengamankan data secara efisien dan mudah digunakan.</p>
 
         <a href="login\login.php">
             <button class="btn-start">MULAI</button>
