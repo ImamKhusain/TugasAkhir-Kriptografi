@@ -1,18 +1,18 @@
 <?php
-require_once '../koneksi/conn.php';
-require_once 'security_config.php';
-
-SecurityConfig::secureSession();
+require_once '../config.php'; // Menggunakan config terpusat
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = $_POST['csrf_token'] ?? '';
     if (!verifyToken($token)) die('Token tidak valid!');
 
+    $conn = getDBConnection(); // Menggunakan fungsi koneksi dari config.php
+
     $username = SecurityConfig::sanitizeInput($_POST['username']);
     $password = SecurityConfig::sanitizeInput($_POST['password']);
 
     if (!SecurityConfig::validatePassword($password)) {
-        header('Location: register.php?pesan=gagal');
+        $conn->close();
+        header('Location: register.php?pesan=gagal'); // Password tidak kuat
         exit;
     }
 
@@ -21,19 +21,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $check->execute();
     $check->store_result();
     if ($check->num_rows > 0) {
-        header('Location: register.php?pesan=gagal');
+        $check->close();
+        $conn->close();
+        header('Location: register.php?pesan=gagal'); // Username sudah ada
         exit;
     }
+    $check->close();
 
-    // Hash password SHA-256
+    // Algo 1: Hash password SHA-256
     $hashed = hash('sha256', $password);
 
-    $stmt = $conn->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'pegawai')");
+    $stmt = $conn->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
     $stmt->bind_param('ss', $username, $hashed);
 
     if ($stmt->execute()) {
-        header('Location: register.php?pesan=berhasil');
+        $stmt->close();
+        $conn->close();
+        // Redirect ke login dengan pesan sukses
+        header('Location: login.php?pesan=berhasil_reg'); 
     } else {
+        $stmt->close();
+        $conn->close();
         header('Location: register.php?pesan=gagal');
     }
 }
