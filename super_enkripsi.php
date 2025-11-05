@@ -149,7 +149,7 @@ $conn->close();
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <button type="submit" name="encrypt" class="btn-custom">Enkripsi</button>
+                        <button type="submit" name="encrypt" class="btn-custom w-100">Enkripsi</button>
                     </form>
 
                     <?php if (!empty($encrypted_message_display)): ?>
@@ -181,7 +181,7 @@ $conn->close();
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <button type="submit" name="decrypt" class="btn-custom-secondary">Dekripsi</button>
+                        <button type="submit" name="decrypt" class="btn-success-custom btn-lg w-100">Dekripsi</button>
                     </form>
 
                     <?php if (!empty($decrypted_message)): ?>
