@@ -14,45 +14,48 @@ $encrypted_message_display = '';
 $decrypted_message = '';
 $error_decrypt = '';
 
+// Fungsi aktif link
 $current = basename($_SERVER['PHP_SELF']);
-function is_active($file, $current) {
+function is_active($file, $current)
+{
     return $current === $file ? 'active' : '';
 }
 
+// Proses Enkripsi
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['encrypt'])) {
     $title = $_POST['judul'] ?? '';
     $pesan = $_POST['pesan'] ?? '';
     $rails = intval($_POST['rails'] ?? 3);
 
     if (!empty($title) && !empty($pesan)) {
-        
+
+        // Lakukan Super Enkripsi (Rail Fence + ChaCha20)
         $encrypted_message = superEncrypt($pesan, $rails);
         $encrypted_message_display = $encrypted_message;
 
-        $stmt = $conn->prepare("INSERT INTO encrypted_messages (user_id, title, encrypted_message, rails, encrypted_method, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-        $method = 'RailFence+ChaCha20';
-        $stmt->bind_param('issis', $user_id, $title, $encrypted_message, $rails, $method);
-        
+        // Simpan ke database (Sesuai struktur baru)
+        $stmt = $conn->prepare("INSERT INTO encrypted_messages (user_id, title, encrypted_message, rails, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->bind_param('issi', $user_id, $title, $encrypted_message, $rails);
+
         if ($stmt->execute()) {
-            $message = "Pesan berhasil dienkripsi dan disimpan ke database!";
+            $message = "Pesan berhasil dienkripsi";
         } else {
-            $message = "Gagal menyimpan ke database: " . $stmt->error;
+            $message = "Gagal menyimpan: " . $stmt->error;
         }
         $stmt->close();
-
     } else {
         $message = "Judul dan Pesan harus diisi!";
     }
 }
 
-// Proses Dekripsi
+// Proses Dekripsi (Tab Dekripsi)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['decrypt'])) {
     $cipher_text = $_POST['cipher_text'] ?? '';
     $rails_decrypt = intval($_POST['rails_decrypt'] ?? 3);
 
     if (!empty($cipher_text)) {
         $result = superDecrypt($cipher_text, $rails_decrypt);
-        
+
         if ($result !== false) {
             $decrypted_message = $result;
         } else {
@@ -72,14 +75,18 @@ $conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super Enkripsi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/fitur.css">     
+
+    <link rel="stylesheet" href="assets/css/fitur.css">
+
 </head>
+
 <body>
 
     <header>
@@ -107,14 +114,6 @@ $conn->close();
         </div>
 
         <div class="content-card">
-            <div class="info-box">
-                <h5>💡 Tentang Super Enkripsi</h5>
-                <ul>
-                    <li><strong>Algoritma:</strong> Rail Fence Cipher + ChaCha20</li>
-                    <li><strong>Penyimpanan:</strong> Hasil enkripsi disimpan di database.</li>
-                </ul>
-            </div>
-
             <ul class="nav nav-tabs" id="myTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="encrypt-tab" data-bs-toggle="tab" data-bs-target="#encrypt-pane" type="button" role="tab">🔒 Enkripsi</button>
@@ -141,22 +140,21 @@ $conn->close();
                         <div class="mb-3">
                             <label class="form-label">Isi Pesan</label>
                             <textarea name="pesan" id="pesan" class="form-control" required placeholder="Masukkan pesan yang akan dienkripsi..." oninput="updateCharCount()"></textarea>
-                            <div style="text-align:right;font-size:12px;color:#7f8c8d;">Karakter: <span id="charCount">0</span></div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Jumlah Rails</label>
                             <select name="rails" class="form-select">
-                                <?php for ($i=3; $i<=10; $i++): ?>
+                                <?php for ($i = 3; $i <= 10; $i++): ?>
                                     <option value="<?= $i; ?>"><?= $i; ?> Rails</option>
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <button type="submit" name="encrypt" class="btn-custom">🔒 Super Enkripsi & Simpan</button>
+                        <button type="submit" name="encrypt" class="btn-custom">Enkripsi</button>
                     </form>
 
                     <?php if (!empty($encrypted_message_display)): ?>
-                        <div class="result-box">
-                            <strong>✅ Hasil Super Enkripsi (Untuk di-copy):</strong>
+                        <div class="result-box result-super">
+                            <strong>Hasil Super Enkripsi</strong>
                             <div class="result-text"><?= htmlspecialchars($encrypted_message_display); ?></div>
                         </div>
                     <?php endif; ?>
@@ -169,27 +167,27 @@ $conn->close();
                         </div>
                     <?php endif; ?>
 
-                    <h4 style="font-size: 16px; font-weight: 600;">Dekripsi Pesan (Super Enkripsi)</h4>
+                    <h4 style="font-size: 16px; font-weight: 600;">Dekripsi Pesan</h4>
                     <form method="POST" action="">
                         <div class="mb-3">
-                            <label class="form-label">Ciphertext (Teks Super Enkripsi)</label>
+                            <label class="form-label">Ciphertext</label>
                             <textarea name="cipher_text" class="form-control" required placeholder="Masukkan teks yang akan didekripsi..."></textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Jumlah Rails</label>
                             <select name="rails_decrypt" class="form-select">
-                                <?php for ($i=3; $i<=10; $i++): ?>
+                                <?php for ($i = 3; $i <= 10; $i++): ?>
                                     <option value="<?= $i; ?>"><?= $i; ?> Rails</option>
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <button type="submit" name="decrypt" class="btn-custom-secondary">🔓 Dekripsi Pesan</button>
+                        <button type="submit" name="decrypt" class="btn-custom-secondary">Dekripsi</button>
                     </form>
 
                     <?php if (!empty($decrypted_message)): ?>
-                        <div class="result-box">
+                        <div class="result-box result-super">
                             <strong>✅ Hasil Dekripsi:</strong>
-                            <div class="result-text" style="font-family: 'Poppins', sans-serif; font-size: 14px;">
+                            <div class="result-text plaintext">
                                 <?= nl2br(htmlspecialchars($decrypted_message)); ?>
                             </div>
                         </div>
@@ -216,7 +214,7 @@ $conn->close();
                                 <td><?= htmlspecialchars($row['title']); ?></td>
                                 <td style="font-family: monospace; font-size: 12px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                     <span title="Klik untuk menyalin" style="cursor: pointer;"
-                                          onclick="copyToClipboard('<?= htmlspecialchars($row['encrypted_message']); ?>', this)">
+                                        onclick="copyToClipboard('<?= htmlspecialchars($row['encrypted_message']); ?>', this)">
                                         <?= htmlspecialchars($row['encrypted_message']); ?>
                                     </span>
                                 </td>
@@ -261,4 +259,5 @@ $conn->close();
         });
     </script>
 </body>
+
 </html>

@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php'; // Menggunakan config terpusat
+require_once 'config.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login/login.php?pesan=belum_login");
@@ -7,14 +7,15 @@ if (!isset($_SESSION['user_id'])) {
 }
 $username = $_SESSION['username'];
 
-// Fungsi aktif link (ditambahkan agar 'Dashboard' bisa aktif)
 $current = basename($_SERVER['PHP_SELF']);
-function is_active($file, $current) {
+function is_active($file, $current)
+{
     return $current === $file ? 'active' : '';
 }
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,9 +23,10 @@ function is_active($file, $current) {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="assets/css/fitur.css">
 </head>
+
 <body>
 
     <header>
@@ -46,7 +48,7 @@ function is_active($file, $current) {
     </header>
 
     <div class="main-container">
-        
+
         <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'login'): ?>
             <div class="alert alert-success alert-dismissible fade show text-center fw-semibold" role="alert">
                 <strong>Berhasil Login!</strong> Selamat datang, <?= htmlspecialchars($username); ?>.
@@ -55,43 +57,24 @@ function is_active($file, $current) {
         <?php endif; ?>
 
         <div class="page-title">
-            <h1>Dashboard</h1>
-            <p>Selamat datang di Aplikasi Kriptografi</p>
+            <h1>Selamat datang di Aplikasi Kriptografi</h1>
+            <p></p>
         </div>
-
-        <div class="content-card">
-            <h4 class="mb-3">Navigasi Cepat</h4>
-            <div class="list-group">
-                <a href="steganografi.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                    Steganografi (LSB)
-                    <span class="badge bg-primary rounded-pill">🔒</span>
-                </a>
-                <a href="super_enkripsi.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                    Super Enkripsi (RailFence + ChaCha20)
-                    <span class="badge bg-primary rounded-pill">🔑</span>
-                </a>
-                <a href="enkripsi_file.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                    Enkripsi File (AES-256-CTR)
-                    <span class="badge bg-primary rounded-pill">📁</span>
-                </a>
-            </div>
-        </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Script untuk menutup alert
         <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'login'): ?>
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                const alert = document.querySelector('.alert');
-                if (alert) {
-                    new bootstrap.Alert(alert).close();
-                }
-            }, 3000);
-        });
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(() => {
+                    const alert = document.querySelector('.alert');
+                    if (alert) {
+                        new bootstrap.Alert(alert).close();
+                    }
+                }, 3000);
+            });
         <?php endif; ?>
     </script>
 </body>
+
 </html>

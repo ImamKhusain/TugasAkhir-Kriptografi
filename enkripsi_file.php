@@ -11,8 +11,7 @@ $conn = getDBConnection();
 
 // Fungsi aktif link
 $current = basename($_SERVER['PHP_SELF']);
-function is_active($file, $current)
-{
+function is_active($file, $current) {
     return $current === $file ? 'active' : '';
 }
 
@@ -24,24 +23,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 
         if ($file['error'] === UPLOAD_ERR_OK) {
             $file_content = file_get_contents($file['tmp_name']);
-            $filename = $file['name'];
+            $filename = $file['name']; 
             $file_type = $file['type'];
-
-            $method = 'AES-256-CTR';
-
+            
             try {
-                $encrypted_content = fileEncryptAES256($file_content, $password);
-
-                $stmt = $conn->prepare("INSERT INTO encrypted_files (user_id, filename, encrypted_content, file_type, encrypted_method, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-                $stmt->bind_param('issss', $user_id, $filename, $encrypted_content, $file_type, $method);
-
+                $encrypted_content = fileEncryptAES256($file_content, $password); 
+                
+                $stmt = $conn->prepare("INSERT INTO encrypted_files (user_id, filename, encrypted_content, file_type, created_at) VALUES (?, ?, ?, ?, NOW())");
+                $stmt->bind_param('isss', $user_id, $filename, $encrypted_content, $file_type);
+                
                 if ($stmt->execute()) {
                     $success_encrypt = "File berhasil dienkripsi dan disimpan ke database!";
                 } else {
                     $error_encrypt = "Gagal menyimpan ke database: " . $stmt->error;
                 }
             } catch (Exception $e) {
-                $error_encrypt = "Error enkripsi: " . $e->getMessage();
+                $error_encrypt = "Error enkripsi: ". $e->getMessage();
             }
         } else {
             $error_encrypt = "Error upload file!";
@@ -49,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     }
 }
 
+// Proses Dekripsi
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'decrypt') {
     $file_id = $_POST['file_id'] ?? 0;
     $password = $_POST['password_decrypt'] ?? '';
@@ -62,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         if ($file = $result->fetch_assoc()) {
             try {
                 $decrypted_content = fileDecryptAES256($file['encrypted_content'], $password);
-
+                
                 if ($decrypted_content !== false) {
                     header('Content-Type: ' . $file['file_type']);
                     header('Content-Disposition: attachment; filename="' . $file['filename'] . '"');
@@ -81,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     }
 }
 
+// Proses Delete
 if (isset($_GET['delete'])) {
     $file_id = intval($_GET['delete']);
     $stmt = $conn->prepare("DELETE FROM encrypted_files WHERE id = ? AND user_id = ?");
@@ -91,7 +90,7 @@ if (isset($_GET['delete'])) {
     }
 }
 
-$stmt = $conn->prepare("SELECT id, filename, file_type, encrypted_method, created_at FROM encrypted_files WHERE user_id = ? ORDER BY created_at DESC");
+$stmt = $conn->prepare("SELECT id, filename, file_type, created_at FROM encrypted_files WHERE user_id = ? ORDER BY created_at DESC");
 $stmt->bind_param('i', $user_id);
 $stmt->execute();
 $files = $stmt->get_result();
@@ -99,16 +98,16 @@ $conn->close();
 ?>
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enkripsi File | AES-256</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="assets/css/fitur.css">
 </head>
-
 <body>
 
     <header>
@@ -136,15 +135,6 @@ $conn->close();
         </div>
 
         <div class="content-card">
-            <div class="info-box">
-                <h5>ℹ️ Tentang Enkripsi File</h5>
-                <ul>
-                    <li><strong>Algoritma:</strong> AES-256-CTR (Counter Mode)</li>
-                    <li><strong>Keamanan:</strong> Password akan di-hash menggunakan PBKDF2</li>
-                    <li><strong>Penyimpanan:</strong> File terenkripsi disimpan di database</li>
-                </ul>
-            </div>
-
             <?php if (isset($success_encrypt)): ?>
                 <div class="alert alert-success"><?= $success_encrypt; ?></div>
             <?php endif; ?>
@@ -155,7 +145,7 @@ $conn->close();
             <h4 class="mb-4">Upload & Enkripsi File</h4>
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="encrypt">
-
+                
                 <div class="mb-3">
                     <label class="form-label">Pilih File</label>
                     <input type="file" class="form-control" name="file" required>
@@ -166,7 +156,7 @@ $conn->close();
                     <input type="password" class="form-control" name="password" placeholder="Masukkan password kuat" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary-custom w-100">🔒 Enkripsi & Simpan</button>
+                <button type="submit" class="btn btn-primary-custom w-100">Enkripsi</button>
             </form>
         </div>
 
@@ -186,7 +176,6 @@ $conn->close();
                         <tr>
                             <th>Nama File</th>
                             <th>Tipe File</th>
-                            <th>Metode</th>
                             <th>Tanggal</th>
                             <th>Aksi</th>
                         </tr>
@@ -196,7 +185,6 @@ $conn->close();
                             <tr>
                                 <td><?= htmlspecialchars($file['filename']); ?></td>
                                 <td><?= htmlspecialchars($file['file_type']); ?></td>
-                                <td><?= htmlspecialchars($file['encrypted_method']); ?></td>
                                 <td><?= date('d/m/Y H:i', strtotime($file['created_at'])); ?></td>
                                 <td>
                                     <button class="btn btn-success-custom btn-sm" onclick="showDecryptModal(<?= $file['id']; ?>, '<?= htmlspecialchars($file['filename']); ?>')">🔓 Dekripsi</button>
@@ -223,9 +211,9 @@ $conn->close();
                     <div class="modal-body">
                         <input type="hidden" name="action" value="decrypt">
                         <input type="hidden" name="file_id" id="decrypt_file_id">
-
+                        
                         <p>File: <strong id="decrypt_filename"></strong></p>
-
+                        
                         <div class="mb-3">
                             <label class="form-label">Masukkan Password</label>
                             <input type="password" class="form-control" name="password_decrypt" required>
@@ -242,6 +230,7 @@ $conn->close();
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // (JS tidak berubah)
         function showDecryptModal(fileId, filename) {
             document.getElementById('decrypt_file_id').value = fileId;
             document.getElementById('decrypt_filename').textContent = filename;
@@ -249,5 +238,4 @@ $conn->close();
         }
     </script>
 </body>
-
 </html>

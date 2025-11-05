@@ -1,20 +1,13 @@
 <?php
-// KONFIGURASI DATABASE & KUNCI
 
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_NAME', 'db_kripto');
 
-// AES-128 Key untuk enkripsi database
-define('AES_KEY', '0123456789abcdef0123456789abcdef');
-define('AES_METHOD', 'aes-128-cbc');
-
-// ChaCha20 Key untuk super enkripsi
 define('CHACHA20_KEY', 'abcdefghijklmnopqrstuvwxyz123456');
+define('CHACHA20_METHOD', 'chacha20');
 
-
-// FUNGSI KEAMANAN
 
 
 class SecurityConfig {
@@ -22,17 +15,15 @@ class SecurityConfig {
     const PASSWORD_REQUIRES_NUMBERS = true;
     const PASSWORD_REQUIRES_SPECIAL_CHARS = true;
 
-    // Jalankan session
     public static function secureSession() {
         ini_set('session.cookie_httponly', 1);
         ini_set('session.use_only_cookies', 1);
-        ini_set('session.cookie_secure', 0);
+        ini_set('session.cookie_secure', 0); 
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
     }
 
-    // Validasi kekuatan password
     public static function validatePassword($password) {
         if (strlen($password) < self::MIN_PASSWORD_LENGTH) return false;
         if (self::PASSWORD_REQUIRES_NUMBERS && !preg_match('/[0-9]/', $password)) return false;
@@ -40,13 +31,11 @@ class SecurityConfig {
         return true;
     }
 
-    // Sanitasi input
     public static function sanitizeInput($input) {
         return htmlspecialchars(strip_tags(trim($input)));
     }
 }
 
-// Menjalankan session di awal untuk semua file
 SecurityConfig::secureSession();
 
 // CSRF Token
@@ -61,11 +50,6 @@ function verifyToken($token) {
     return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
-
-// 3. FUNGSI DATABASE
-
-
-// Koneksi Database
 function getDBConnection() {
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
     if ($conn->connect_error) {
@@ -74,28 +58,6 @@ function getDBConnection() {
     return $conn;
 }
 
-
-// 4. FUNGSI KRIPTOGRAFI
-
-
-// AES-128 (Untuk Enkripsi Field Database)
-function aesEncrypt($data) {
-    $key = hex2bin(AES_KEY);
-    $iv = openssl_random_pseudo_bytes(16);
-    $encrypted = openssl_encrypt($data, AES_METHOD, $key, OPENSSL_RAW_DATA, $iv);
-    return base64_encode($iv . $encrypted);
-}
-
-function aesDecrypt($data) {
-    $key = hex2bin(AES_KEY);
-    $data = base64_decode($data);
-    if ($data === false) return false;
-    $iv = substr($data, 0, 16);
-    $encrypted = substr($data, 16);
-    return openssl_decrypt($encrypted, AES_METHOD, $key, OPENSSL_RAW_DATA, $iv);
-}
-
-// Super Enkripsi (Rail Fence + ChaCha20)
 function railFenceEncrypt($text, $rails = 3) {
     if ($rails <= 1) return $text;
     $fence = array_fill(0, $rails, '');
@@ -107,7 +69,6 @@ function railFenceEncrypt($text, $rails = 3) {
     }
     return implode('', $fence);
 }
-
 function railFenceDecrypt($cipher, $rails = 3) {
     if ($rails <= 1) return $cipher;
     $fence = array_fill(0, $rails, array_fill(0, strlen($cipher), ''));
@@ -135,18 +96,27 @@ function railFenceDecrypt($cipher, $rails = 3) {
 }
 
 function chacha20Encrypt($plaintext, $key = CHACHA20_KEY) {
-    $nonce = random_bytes(12);
-    $encrypted = openssl_encrypt($plaintext, 'chacha20', $key, OPENSSL_RAW_DATA, $nonce);
-    return base64_encode($nonce . $encrypted);
+    $nonce12 = random_bytes(12);
+    $counter4 = pack('V', 0);
+    $iv16 = $nonce12 . $counter4;
+
+    $cipher_raw = openssl_encrypt($plaintext, 'chacha20', $key, OPENSSL_RAW_DATA, $iv16);
+    return base64_encode($nonce12 . $cipher_raw);
 }
 
 function chacha20Decrypt($ciphertext, $key = CHACHA20_KEY) {
     $data = base64_decode($ciphertext);
-    if ($data === false) return false;
-    $nonce = substr($data, 0, 12);
-    $encrypted = substr($data, 12);
-    return openssl_decrypt($encrypted, 'chacha20', $key, OPENSSL_RAW_DATA, $nonce);
+    if ($data === false || strlen($data) < 13) return false;
+
+    $nonce12   = substr($data, 0, 12);
+    $cipher_raw = substr($data, 12);
+
+    $counter4 = pack('V', 0);
+    $iv16 = $nonce12 . $counter4;
+
+    return openssl_decrypt($cipher_raw, 'chacha20', $key, OPENSSL_RAW_DATA, $iv16);
 }
+
 
 function superEncrypt($text, $rails = 3) {
     $railEncrypted = railFenceEncrypt($text, $rails);
@@ -159,15 +129,14 @@ function superDecrypt($cipher, $rails = 3) {
     return railFenceDecrypt($chachaDecrypted, $rails);
 }
 
-// Enkripsi file dengan AES-256-CTR
 function fileEncryptAES256($data, $password) {
     $salt = random_bytes(16);
     $key = hash_pbkdf2("sha256", $password, $salt, 10000, 32, true);
-
-    $iv = random_bytes(16); 
+    
+    $iv = random_bytes(16);
 
     $encrypted = openssl_encrypt($data, 'aes-256-ctr', $key, OPENSSL_RAW_DATA, $iv);
-
+    
     return base64_encode($salt . $iv . $encrypted);
 }
 
@@ -183,8 +152,5 @@ function fileDecryptAES256($encrypted_data, $password) {
     
     return openssl_decrypt($encrypted, 'aes-256-ctr', $key, OPENSSL_RAW_DATA, $iv);
 }
-
-// --- Algo 5: LSB Steganografi ---
-// (Logika LSB Anda biarkan di dalam steganografi.php karena sudah self-contained)
 
 ?>
