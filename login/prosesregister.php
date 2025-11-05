@@ -7,12 +7,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $conn = getDBConnection();
 
+    $raw_password = $_POST['password']; 
+    
     $username = SecurityConfig::sanitizeInput($_POST['username']);
-    $password = SecurityConfig::sanitizeInput($_POST['password']);
 
-    if (!SecurityConfig::validatePassword($password)) {
+    if (!SecurityConfig::validatePassword($raw_password)) {
         $conn->close();
-        header('Location: register.php?pesan=gagal');
+        header('Location: register.php?pesan=gagal_validasi');
         exit;
     }
 
@@ -23,12 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($check->num_rows > 0) {
         $check->close();
         $conn->close();
-        header('Location: register.php?pesan=gagal');
+        header('Location: register.php?pesan=gagal_username');
         exit;
     }
     $check->close();
 
-    $hashed = password_hash($password, PASSWORD_ARGON2I);
+    $hashed = password_hash($raw_password, PASSWORD_ARGON2I);
 
     if ($hashed === false) {
         $conn->close();
@@ -46,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $stmt->close();
         $conn->close();
-        header('Location: register.php?pesan=gagal');
+        header('Location: register.php?pesan=gagal_db');
     }
 }
+?>
