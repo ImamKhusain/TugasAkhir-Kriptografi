@@ -78,7 +78,7 @@ function getDBConnection() {
 // 4. FUNGSI KRIPTOGRAFI
 
 
-// --- Algo 2: AES-128 (Untuk Enkripsi Field Database) ---
+// AES-128 (Untuk Enkripsi Field Database)
 function aesEncrypt($data) {
     $key = hex2bin(AES_KEY);
     $iv = openssl_random_pseudo_bytes(16);
@@ -95,7 +95,7 @@ function aesDecrypt($data) {
     return openssl_decrypt($encrypted, AES_METHOD, $key, OPENSSL_RAW_DATA, $iv);
 }
 
-// --- Algo 3: Super Enkripsi (Rail Fence + ChaCha20) ---
+// Super Enkripsi (Rail Fence + ChaCha20)
 function railFenceEncrypt($text, $rails = 3) {
     if ($rails <= 1) return $text;
     $fence = array_fill(0, $rails, '');
@@ -159,23 +159,29 @@ function superDecrypt($cipher, $rails = 3) {
     return railFenceDecrypt($chachaDecrypted, $rails);
 }
 
-// --- Algo 4 (Sesuai file Anda): AES-256 (Untuk Enkripsi File) ---
+// Enkripsi file dengan AES-256-CTR
 function fileEncryptAES256($data, $password) {
     $salt = random_bytes(16);
     $key = hash_pbkdf2("sha256", $password, $salt, 10000, 32, true);
-    $iv = random_bytes(16);
-    $encrypted = openssl_encrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+
+    $iv = random_bytes(16); 
+
+    $encrypted = openssl_encrypt($data, 'aes-256-ctr', $key, OPENSSL_RAW_DATA, $iv);
+
     return base64_encode($salt . $iv . $encrypted);
 }
 
 function fileDecryptAES256($encrypted_data, $password) {
     $data = base64_decode($encrypted_data);
     if ($data === false || strlen($data) < 32) return false;
+    
     $salt = substr($data, 0, 16);
     $iv = substr($data, 16, 16);
     $encrypted = substr($data, 32);
+    
     $key = hash_pbkdf2("sha256", $password, $salt, 10000, 32, true);
-    return openssl_decrypt($encrypted, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+    
+    return openssl_decrypt($encrypted, 'aes-256-ctr', $key, OPENSSL_RAW_DATA, $iv);
 }
 
 // --- Algo 5: LSB Steganografi ---
