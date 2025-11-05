@@ -1,7 +1,7 @@
 <?php
 require_once 'config.php';
 
-if (!isset($_SESSION['user_id'])) { // Cek user_id
+if (!isset($_SESSION['user_id'])) {
     header("Location: login/login.php?pesan=belum_login");
     exit;
 }
@@ -14,9 +14,7 @@ function is_active($file, $current) {
     return $current === $file ? 'active' : '';
 }
 
-/* ==============================
-   Proses EMBED (LSB)
-============================== */
+// Proses EMBED (LSB)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'embed') {
     if (isset($_FILES['gambar']) && isset($_POST['pesan'])) {
         $gambar = $_FILES['gambar'];
@@ -32,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 $width  = imagesx($img);
                 $height = imagesy($img);
                 
-                $pesan_full = $pesan . '###END###'; // Delimiter
+                $pesan_full = $pesan . '###END###';
                 $pesan_binary = '';
                 for ($i = 0; $i < strlen($pesan_full); $i++) {
                     $pesan_binary .= str_pad(decbin(ord($pesan_full[$i])), 8, '0', STR_PAD_LEFT);
@@ -57,7 +55,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         }
                     }
 
-                    // --- LOGIKA BARU: Simpan ke DB + Force Download ---
                     $original_filename = SecurityConfig::sanitizeInput($gambar['name']);
                     $stego_filename = 'stego_' . $user_id . '_' . time() . '.png';
                     $output_dir = 'uploads/';
@@ -67,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         mkdir($output_dir, 0777, true); 
                     }
                     
-                    imagepng($img, $output_path); // Simpan file ke server
+                    imagepng($img, $output_path);
                     imagedestroy($img);
 
                     // Siapkan data untuk DB
@@ -78,7 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     $stmt->bind_param('isssss', $user_id, $original_filename, $stego_filename, $output_path, $message_preview, $method);
                     
                     if ($stmt->execute()) {
-                        // Berhasil simpan DB, paksa download
                         $stmt->close();
                         $conn->close();
                         
@@ -89,13 +85,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         header('Cache-Control: must-revalidate');
                         header('Pragma: public');
                         header('Content-Length: ' . filesize($output_path));
-                        flush(); // Flush system output buffer
+                        flush(); 
                         readfile($output_path);
-                        exit; // Stop script
+                        exit;
 
                     } else {
                         $error_embed = "Gagal menyimpan ke database: " . $stmt->error;
-                        unlink($output_path); // Hapus file jika gagal simpan DB
+                        unlink($output_path);
                     }
                     $stmt->close();
                     
@@ -111,9 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     }
 }
 
-/* ==============================
-   Proses EXTRACT (LSB)
-============================== */
+// Proses EXTRACT (LSB)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'extract') {
     if (isset($_FILES['gambar_extract'])) {
         $gambar  = $_FILES['gambar_extract'];
@@ -181,128 +175,7 @@ $conn->close();
     <title>Steganografi | LSB Method</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Poppins', sans-serif; }
-        body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
-            min-height: 100vh;
-            padding-top: 84px; 
-        }
-        header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1030;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid #dee2e6;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-        }
-        .header-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 12px 40px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            min-height: 60px;
-        }
-        .welcome-text { line-height: 1.2; }
-        .welcome-text h5 {
-            margin: 0;
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 13px;
-        }
-        .welcome-text h5 span {
-            color: #0d6efd;
-            font-weight: 700;
-            font-size: 13px;
-        }
-        .welcome-text a { text-decoration: none; }
-        .nav-center {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 50px;
-        }
-        .nav-center a {
-            text-decoration: none;
-            color: #6c757d;
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            padding: 8px 4px;
-            border-bottom: 3px solid transparent;
-            transition: color .2s ease, border-color .2s ease;
-        }
-        .nav-center a:hover {
-            color: #0d6efd;
-            border-bottom-color: rgba(13,110,253,.4);
-        }
-        .nav-center a.active {
-            color: #0d6efd;
-            border-bottom-color: #0d6efd;
-        }
-        .logout-btn .btn {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            font-weight: 600;
-            padding: 6px 20px;
-        }
-        .main-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-        .page-title { text-align: center; margin-bottom: 30px; }
-        .page-title h1 { font-weight: 700; color: #2c3e50; font-size: 2.5rem; margin-bottom: 10px; }
-        .page-title p { color: #7f8c8d; font-size: 1rem; }
-        .nav-tabs { border: none; margin-bottom: 30px; }
-        .nav-tabs .nav-link {
-            border: none; color: #7f8c8d; font-weight: 600;
-            padding: 12px 30px; margin-right: 10px;
-            border-radius: 10px 10px 0 0; transition: .3s;
-        }
-        .nav-tabs .nav-link:hover { color: #3498db; background: rgba(52,152,219,.1); }
-        .nav-tabs .nav-link.active { color: #3498db; background: #fff; border-bottom: 3px solid #3498db; }
-        .content-card { background: #fff; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,.08); padding: 40px; margin-bottom: 30px; }
-        .info-box { background: #fce4ec; border: 1px solid #f8bbd0; border-radius: 10px; padding: 20px; margin-bottom: 30px; }
-        .info-box h5 { color: #c2185b; font-weight: 600; margin-bottom: 15px; }
-        .info-box ul { margin: 0; padding-left: 20px; }
-        .info-box li { color: #880e4f; font-size: 14px; margin-bottom: 8px; }
-        .form-label { font-weight: 600; color: #2c3e50; margin-bottom: 10px; }
-        .form-control, .form-control:focus { border-radius: 10px; border: 2px solid #e9ecef; padding: 12px 15px; }
-        .form-control:focus { border-color: #3498db; box-shadow: 0 0 0 .2rem rgba(52,152,219,.15); }
-        .btn-primary-custom { background: #3498db; border: none; border-radius: 10px; padding: 12px 30px; font-weight: 600; color: #fff; transition: .3s; }
-        .btn-primary-custom:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(52,152,219,.3); }
-        
-        /* Menggunakan style tombol dari enkripsi_file.php agar konsisten */
-        .btn-success-custom { 
-            background: #27ae60; border: none; border-radius: 10px; 
-            padding: 8px 20px; /* Disesuaikan agar pas di tabel */
-            font-weight: 600; color: #fff; text-decoration: none; display: inline-block;
-        }
-        .btn-success-custom:hover { background: #229954; transform: translateY(-2px); }
-        .btn-success-custom.btn-lg { /* Tombol besar untuk form ekstrak */
-             padding: 12px 30px; 
-        }
-
-        .preview-container { border: 2px dashed #e9ecef; border-radius: 10px; padding: 20px; margin-top: 20px; }
-        .preview-container img { max-width: 100%; max-height: 400px; border-radius: 10px; }
-        .result-box { background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 10px; padding: 20px; margin-top: 20px; }
-        .result-box h5 { color: #2e7d32; font-weight: 600; margin-bottom: 15px; }
-        .result-content { background: #fff; padding: 15px; border-radius: 8px; color: #2c3e50; word-wrap: break-word; }
-        .info-section { background: #e3f2fd; border: 1px solid #bbdefb; border-radius: 10px; padding: 25px; margin-top: 30px; }
-        .info-section h5 { color: #1565c0; font-weight: 600; margin-bottom: 15px; }
-        .info-section p { color: #1976d2; font-size: 14px; line-height: 1.8; }
-        .file-name, .char-count { color: #7f8c8d; font-size: 14px; margin-top: 8px; }
-        .file-table { width: 100%; margin-top: 20px; }
-        .file-table th { background: #f8f9fa; padding: 12px; font-weight: 600; }
-        .file-table td { padding: 12px; border-bottom: 1px solid #e9ecef; vertical-align: middle; }
-        @media (max-width: 900px) {
-            .nav-center { position: static; transform: none; justify-content: center; gap: 24px; }
-            .header-inner { padding: 10px 16px; }
-        }
-    </style>
+    <link rel="stylesheet" href="assets/css/fitur.css">
 </head>
 <body>
 
@@ -490,7 +363,7 @@ $conn->close();
         const pesanInput = document.getElementById('pesanInput');
         if (pesanInput) {
             pesanInput.addEventListener('input', countChars);
-            countChars(); // Panggil saat load
+            countChars();
         }
 
         <?php if (isset($success_extract)): ?>

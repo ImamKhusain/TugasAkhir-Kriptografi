@@ -1,26 +1,24 @@
 <?php
-require_once 'config.php'; // Menggunakan config terpusat
+require_once 'config.php';
 
-if (!isset($_SESSION['user_id'])) { // Cek user_id
+if (!isset($_SESSION['user_id'])) {
     header("Location: login/login.php?pesan=belum_login");
     exit;
 }
 $user_id = $_SESSION['user_id'];
-$username = $_SESSION['username']; // Masih digunakan untuk sapaan
+$username = $_SESSION['username'];
 $conn = getDBConnection();
 
 $message = '';
-$encrypted_message_display = ''; // Untuk ditampilkan di box hasil
+$encrypted_message_display = '';
 $decrypted_message = '';
 $error_decrypt = '';
 
-// Fungsi aktif link
 $current = basename($_SERVER['PHP_SELF']);
 function is_active($file, $current) {
     return $current === $file ? 'active' : '';
 }
 
-// Proses Enkripsi
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['encrypt'])) {
     $title = $_POST['judul'] ?? '';
     $pesan = $_POST['pesan'] ?? '';
@@ -28,11 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['encrypt'])) {
 
     if (!empty($title) && !empty($pesan)) {
         
-        // 1. Lakukan Super Enkripsi (Rail Fence + ChaCha20)
         $encrypted_message = superEncrypt($pesan, $rails);
-        $encrypted_message_display = $encrypted_message; // Simpan untuk ditampilkan
+        $encrypted_message_display = $encrypted_message;
 
-        // 2. Simpan ke database (Sesuai struktur baru)
         $stmt = $conn->prepare("INSERT INTO encrypted_messages (user_id, title, encrypted_message, rails, encrypted_method, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
         $method = 'RailFence+ChaCha20';
         $stmt->bind_param('issis', $user_id, $title, $encrypted_message, $rails, $method);
@@ -49,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['encrypt'])) {
     }
 }
 
-// Proses Dekripsi (Tab Dekripsi)
+// Proses Dekripsi
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['decrypt'])) {
     $cipher_text = $_POST['cipher_text'] ?? '';
     $rails_decrypt = intval($_POST['rails_decrypt'] ?? 3);
@@ -82,131 +78,7 @@ $conn->close();
     <title>Super Enkripsi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* (CSS tidak berubah dari file asli Anda) */
-        * { font-family: 'Poppins', sans-serif; }
-        body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
-            min-height: 100vh;
-            padding-top: 84px;
-        }
-        header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1030;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid #dee2e6;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-        }
-        .header-inner {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 12px 40px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: relative;
-            min-height: 60px;
-        }
-        .welcome-text h5 {
-            margin: 0;
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 13px;
-            line-height: 1.3;
-        }
-        .welcome-text h5 span {
-            color: #0d6efd;
-            font-weight: 700;
-            font-size: 13px;
-        }
-        .welcome-text a { text-decoration: none; }
-        .nav-center {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 50px;
-        }
-        .nav-center a {
-            text-decoration: none;
-            color: #6c757d;
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            padding: 8px 4px;
-            border-bottom: 3px solid transparent;
-            transition: color .2s ease, border-color .2s ease;
-        }
-        .nav-center a:hover {
-            color: #0d6efd;
-            border-bottom-color: rgba(13,110,253,.4);
-        }
-        .nav-center a.active {
-            color: #0d6efd;
-            border-bottom-color: #0d6efd;
-        }
-        .logout-btn .btn {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            font-weight: 600;
-            padding: 6px 20px;
-        }
-        @media (max-width: 900px) {
-            .nav-center { position: static; transform: none; justify-content: center; gap: 24px; }
-            .header-inner { padding: 10px 16px; }
-        }
-        .main-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-        .page-title { text-align: center; margin-bottom: 30px; }
-        .page-title h1 { font-weight: 700; color: #2c3e50; font-size: 2.5rem; margin-bottom: 10px; }
-        .page-title p { color: #7f8c8d; font-size: 1rem; }
-        .content-card { background: #fff; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,.08); padding: 40px; margin-bottom: 30px; }
-        
-        .info-box {
-            background: #fff8dc; border-left: 4px solid #f0ad4e;
-            padding: 20px 25px; margin-bottom: 30px; border-radius: 6px;
-        }
-        .info-box h5 {
-            color: #856404; margin-bottom: 12px;
-            font-size: 15px; font-weight: 600;
-        }
-        .info-box ul { list-style: none; padding: 0; margin: 0; }
-        .info-box li {
-            color: #856404; margin-bottom: 6px;
-            font-size: 13.5px; line-height: 1.6;
-        }
-        
-        .form-label { font-weight: 600; color: #2c3e50; margin-bottom: 10px; }
-        .form-control, .form-control:focus, .form-select { border-radius: 10px; border: 2px solid #e9ecef; padding: 12px 15px; }
-        .form-control:focus { border-color: #3498db; box-shadow: 0 0 0 .2rem rgba(52,152,219,.15); }
-        textarea.form-control { min-height: 120px; }
-        
-        .btn-custom {
-            background: #0d6efd; color: white; padding: 12px 28px;
-            border: none; border-radius: 10px; font-weight: 600;
-        }
-        .btn-custom:hover { background: #0b5ed7; }
-        .btn-custom-secondary {
-            background: #6c757d; color: white; padding: 12px 28px;
-            border: none; border-radius: 10px; font-weight: 600;
-        }
-        
-        .result-box {
-            background: #f8f9fa; padding: 20px; border-radius: 8px;
-            margin-top: 20px; border: 1px solid #dee2e6;
-        }
-        .result-text {
-            background: white; border: 1px solid #ddd; border-radius: 6px;
-            padding: 12px; word-wrap: break-word; font-family: monospace;
-            font-size: 13px;
-        }
-        .nav-tabs .nav-link { font-weight: 600; }
-        .file-table { width: 100%; margin-top: 20px; }
-        .file-table th { background: #f8f9fa; padding: 12px; font-weight: 600; }
-        .file-table td { padding: 12px; border-bottom: 1px solid #e9ecef; vertical-align: middle; }
-    </style>
+    <link rel="stylesheet" href="assets/css/fitur.css">     
 </head>
 <body>
 
