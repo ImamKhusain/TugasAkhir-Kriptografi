@@ -5,7 +5,31 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login/login.php?pesan=belum_login");
     exit;
 }
+
+$user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
+
+$conn = getDBConnection();
+$stmt = $conn->prepare("SELECT nama_lengkap FROM users WHERE id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$user_data = $result->fetch_assoc();
+$stmt->close();
+$conn->close();
+
+$nama_terenkripsi = $user_data['nama_lengkap'];
+
+if (empty($nama_terenkripsi)) {
+    header("Location: isi_profil.php");
+    exit;
+}
+
+$nama_asli = dbDecryptAES128($nama_terenkripsi, DB_ENCRYPTION_KEY);
+if ($nama_asli === false) {
+    $nama_asli = $username; 
+}
+
 
 $current = basename($_SERVER['PHP_SELF']);
 function is_active($file, $current)
@@ -13,6 +37,7 @@ function is_active($file, $current)
     return $current === $file ? 'active' : '';
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 
@@ -252,7 +277,7 @@ function is_active($file, $current)
         <div class="header-inner">
             <div class="welcome-text">
                 <a href="dashboard.php">
-                    <h5>WELCOME <br><span>(<?= htmlspecialchars($username); ?>)</span></h5>
+                    <h5>WELCOME <br><span>(<?= htmlspecialchars($nama_asli); ?>)</span></h5>
                 </a>
             </div>
             <nav class="nav-center">
@@ -270,17 +295,21 @@ function is_active($file, $current)
 
         <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'login'): ?>
             <div class="alert alert-success alert-dismissible fade show text-center fw-semibold" role="alert">
-                <strong>Berhasil Login!</strong> Selamat datang, <?= htmlspecialchars($username); ?>.
+                <strong>Berhasil Login!</strong> Selamat datang, <?= htmlspecialchars($nama_asli); ?>.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php elseif (isset($_GET['pesan']) && $_GET['pesan'] == 'profil_disimpan'): ?>
+             <div class="alert alert-success alert-dismissible fade show text-center fw-semibold" role="alert">
+                <strong>Profil Disimpan!</strong> Selamat datang di Aplikasi Kriptografi, <?= htmlspecialchars($nama_asli); ?>.
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         <?php endif; ?>
 
         <div class="hero-section">
-            <h1>Selamat Datang di Aplikasi Kriptografi</h1>
+            <h1>Selamat Datang, <?= htmlspecialchars($nama_asli); ?>!</h1>
             <p>Amankan data Anda dengan teknologi enkripsi modern dan steganografi. Lindungi informasi penting dengan mudah, cepat, dan aman.</p>
         </div>
 
-        <!-- Feature Cards -->
         <div class="features-grid">
             <div class="feature-card">
                 <div class="feature-icon">🖼️</div>
@@ -304,7 +333,6 @@ function is_active($file, $current)
             </div>
         </div>
 
-        <!-- Info Highlights -->
         <div class="info-highlights">
             <div class="highlight-box">
                 <div class="highlight-icon">⚡</div>
@@ -331,7 +359,6 @@ function is_active($file, $current)
             </div>
         </div>
 
-        <!-- Getting Started Section -->
         <div class="getting-started">
             <h3>Cara Memulai</h3>
             <div class="getting-started-content">
@@ -359,7 +386,7 @@ function is_active($file, $current)
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        <?php if (isset($_GET['pesan']) && $_GET['pesan'] == 'login'): ?>
+        <?php if (isset($_GET['pesan'])): ?>
             document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => {
                     const alert = document.querySelector('.alert');

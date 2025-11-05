@@ -8,7 +8,8 @@ define('DB_NAME', 'db_kripto');
 define('CHACHA20_KEY', 'abcdefghijklmnopqrstuvwxyz123456');
 define('CHACHA20_METHOD', 'chacha20');
 
-
+define('DB_ENCRYPTION_KEY', 'Th1sIsMyS3cr3tK1');
+define('AES128_GCM_METHOD', 'aes-128-gcm');
 
 class SecurityConfig {
     const MIN_PASSWORD_LENGTH = 8;
@@ -151,6 +152,63 @@ function fileDecryptAES256($encrypted_data, $password) {
     $key = hash_pbkdf2("sha256", $password, $salt, 10000, 32, true);
     
     return openssl_decrypt($encrypted, 'aes-256-ctr', $key, OPENSSL_RAW_DATA, $iv);
+}
+
+/**
+ * Mengenkripsi data kolom DB menggunakan AES-128-GCM (Mode AEAD).
+ */
+function dbEncryptAES128($plaintext, $key = DB_ENCRYPTION_KEY) {
+    if (mb_strlen($key, '8bit') !== 16) {
+        throw new Exception("Kunci harus tepat 16 byte untuk AES-128.");
+    }
+    
+    $iv_len = openssl_cipher_iv_length(AES128_GCM_METHOD); // 12 bytes
+    $iv = random_bytes($iv_len);
+    $tag = ""; // Diisi oleh openssl_encrypt
+    
+    $ciphertext = openssl_encrypt(
+        $plaintext,
+        AES128_GCM_METHOD,
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv,
+        $tag // Tag autentikasi (penting untuk GCM)
+    );
+    
+    // Gabungkan iv + ciphertext + tag untuk disimpan
+    return base64_encode($iv . $ciphertext . $tag);
+}
+
+/**
+ * Mendekripsi data kolom DB (AES-128-GCM).
+ */
+function dbDecryptAES128($encrypted_data, $key = DB_ENCRYPTION_KEY) {
+    if (mb_strlen($key, '8bit') !== 16) {
+        throw new Exception("Kunci harus tepat 16 byte untuk AES-128.");
+    }
+    
+    $data = base64_decode($encrypted_data);
+    if ($data === false) return false;
+    
+    $iv_len = openssl_cipher_iv_length(AES128_GCM_METHOD); // 12 bytes
+    $tag_len = 16; // GCM tag
+    
+    if (strlen($data) < $iv_len + $tag_len) return false;
+    
+    $iv = substr($data, 0, $iv_len);
+    $ciphertext = substr($data, $iv_len, -$tag_len);
+    $tag = substr($data, -$tag_len);
+    
+    $plaintext = openssl_decrypt(
+        $ciphertext,
+        AES128_GCM_METHOD,
+        $key,
+        OPENSSL_RAW_DATA,
+        $iv,
+        $tag // Verifikasi tag
+    );
+    
+    return $plaintext; // Akan return false jika tag tidak cocok
 }
 
 ?>
