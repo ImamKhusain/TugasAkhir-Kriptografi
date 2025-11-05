@@ -1,10 +1,9 @@
-/* === Base / Reset === */
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; padding: 0; }
 
 body {
     font-family: 'Poppins', sans-serif;
-    background: url("../img/bg2.jpg") no-repeat center center fixed;  /* ✅ Background foto aktif */
+    background: url("../img/bg2.jpg") no-repeat center center fixed;
     background-size: cover;
     color: #fff;
     overflow-x: hidden;
@@ -21,15 +20,13 @@ body {
     display: flex;
     align-items: center;
     padding: 0 28px;
-    background: rgba(0, 0, 0, 0.25); /* ✅ sedikit transparan agar background terlihat */
+    background: rgba(0, 0, 0, 0.25);
     backdrop-filter: blur(6px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-/* make container-fluid behave nicely */
 .navbar .container-fluid { position: relative; display: flex; align-items: center; }
 
-/* LEFT: welcome */
 .welcome-text { z-index: 1100; }
 .welcome-text h5 {
     color: #fff;
@@ -47,7 +44,6 @@ body {
     margin-top: 6px;
 }
 
-/* CENTER: menu links positioned absolute centered on nav */
 .menu-links {
     position: absolute;
     left: 50%;
@@ -71,7 +67,6 @@ body {
     transform: translateY(-2px);
 }
 
-/* RIGHT: logout button */
 .logout-btn { margin-left: auto; z-index: 1100; }
 .logout-btn .btn {
     border-radius: 20px;
@@ -88,27 +83,23 @@ body {
     transform: translateY(-2px);
 }
 
-/* === Hero Section === */
 .hero-section {
     height: 100vh;
     width: 100%;
     position: relative;
-    /* ❌ background-image dihapus supaya body background terlihat */
     display: flex;
     justify-content: center;
     align-items: center;
     text-align: center;
 }
 
-/* dark overlay untuk memperjelas teks */
 .overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.45); /* ✅ gelap tipis agar teks tetap jelas */
+    background: rgba(0,0,0,0.45);
     z-index: 2;
 }
 
-/* Konten hero */
 .hero-content {
     position: relative;
     z-index: 3;
@@ -116,7 +107,6 @@ body {
     padding: 20px 30px;
 }
 
-/* Judul / subtitle */
 .hero-content h1 {
     margin: 0;
     font-size: 44px;
@@ -132,7 +122,6 @@ body {
     line-height: 1.4;
 }
 
-/* Garis aksen kuning (atas & bawah) */
 .decor-line {
     width: 90px;
     height: 4px;
@@ -144,20 +133,18 @@ body {
 .decor-line.top { margin-bottom: 18px; }
 .decor-line.bottom { margin-top: 18px; }
 
-/* sedikit gaya tambahan agar teks lebih 'pop' */
 .hero-content h1,
 .hero-content h2 {
     text-shadow: 0 6px 20px rgba(0,0,0,0.6);
 }
 
-/* Responsif */
 @media (max-width: 992px) {
     .hero-content h1 { font-size: 36px; }
     .hero-content h2 { font-size: 22px; }
     .menu-links { gap: 18px; }
 }
 @media (max-width: 768px) {
-    .menu-links { display: none; } /* sembunyikan menu di mobile */
+    .menu-links { display: none; }
     .welcome-text h5 { font-size: 14px; }
     .logout-btn .btn { padding: 6px 10px; font-size: 13px; }
     .decor-line { width: 70px; }

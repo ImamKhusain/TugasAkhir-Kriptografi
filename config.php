@@ -1,33 +1,32 @@
 <?php
-// ===================================
-// 1. KONFIGURASI DATABASE & KUNCI
-// ===================================
+// KONFIGURASI DATABASE & KUNCI
+
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_NAME', 'db_kripto');
 
-// Algo 2: AES-128 Key untuk enkripsi database
+// AES-128 Key untuk enkripsi database
 define('AES_KEY', '0123456789abcdef0123456789abcdef');
 define('AES_METHOD', 'aes-128-cbc');
 
-// Algo 3: ChaCha20 Key untuk super enkripsi
+// ChaCha20 Key untuk super enkripsi
 define('CHACHA20_KEY', 'abcdefghijklmnopqrstuvwxyz123456');
 
-// ===================================
-// 2. FUNGSI KEAMANAN (dari security_config.php)
-// ===================================
+
+// FUNGSI KEAMANAN
+
 
 class SecurityConfig {
     const MIN_PASSWORD_LENGTH = 8;
     const PASSWORD_REQUIRES_NUMBERS = true;
     const PASSWORD_REQUIRES_SPECIAL_CHARS = true;
 
-    // Jalankan session aman
+    // Jalankan session
     public static function secureSession() {
         ini_set('session.cookie_httponly', 1);
         ini_set('session.use_only_cookies', 1);
-        ini_set('session.cookie_secure', 0); // Set ke 1 jika pakai HTTPS
+        ini_set('session.cookie_secure', 0);
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -62,9 +61,9 @@ function verifyToken($token) {
     return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
-// ===================================
+
 // 3. FUNGSI DATABASE
-// ===================================
+
 
 // Koneksi Database
 function getDBConnection() {
@@ -75,9 +74,9 @@ function getDBConnection() {
     return $conn;
 }
 
-// ===================================
+
 // 4. FUNGSI KRIPTOGRAFI
-// ===================================
+
 
 // --- Algo 2: AES-128 (Untuk Enkripsi Field Database) ---
 function aesEncrypt($data) {

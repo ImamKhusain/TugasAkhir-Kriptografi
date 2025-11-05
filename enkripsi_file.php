@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php'; // Menggunakan config terpusat
+require_once 'config.php';
 
 if (!isset($_SESSION['user_id'])) { // Cek user_id
     header("Location: login/login.php?pesan=belum_login");
@@ -20,19 +20,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     if (isset($_FILES['file']) && isset($_POST['password'])) {
         $file = $_FILES['file'];
         $password = $_POST['password'];
-        // $deskripsi = $_POST['deskripsi'] ?? ''; // Dihapus sesuai DB baru
 
         if ($file['error'] === UPLOAD_ERR_OK) {
             $file_content = file_get_contents($file['tmp_name']);
-            $filename = $file['name']; // Sesuai DB baru
+            $filename = $file['name'];
             $file_type = $file['type'];
-            $file_size = $file['size']; // Dihapus dari DB, tapi OK untuk validasi
-            $method = 'AES-256'; // Sesuai DB baru
+            $file_size = $file['size'];
+            $method = 'AES-256';
 
             try {
                 $encrypted_content = fileEncryptAES256($file_content, $password);
                 
-                // Simpan ke database (Sesuai struktur baru)
                 $stmt = $conn->prepare("INSERT INTO encrypted_files (user_id, filename, encrypted_content, file_type, encrypted_method, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
                 $stmt->bind_param('issss', $user_id, $filename, $encrypted_content, $file_type, $method);
                 

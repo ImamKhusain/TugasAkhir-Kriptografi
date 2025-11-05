@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php'; // Menggunakan config terpusat
+require_once 'config.php';
 
 if (!isset($_SESSION['user_id'])) { // Cek user_id
     header("Location: login/login.php?pesan=belum_login");
@@ -15,7 +15,7 @@ function is_active($file, $current) {
 }
 
 /* ==============================
-   Proses EMBED (LSB) - Diperbarui dengan Download
+   Proses EMBED (LSB)
 ============================== */
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'embed') {
     if (isset($_FILES['gambar']) && isset($_POST['pesan'])) {
