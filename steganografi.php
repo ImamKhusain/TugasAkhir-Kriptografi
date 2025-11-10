@@ -215,7 +215,7 @@ $conn->close();
         <div class="header-inner">
             <div class="welcome-text">
                 <a href="dashboard.php">
-                    <h5>WELCOME <br><span>(<?= htmlspecialchars($username); ?>)</span></h5>
+                    <h5>Aplikasi Cryptopedia</h5>
                 </a>
             </div>
             <nav class="nav-center" role="navigation" aria-label="Main navigation">

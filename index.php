@@ -72,7 +72,7 @@
 <body>
     <div class="card">
         <img src="https://i.pinimg.com/736x/c2/ee/c5/c2eec558e6c9f209f35737fc08104d4c.jpg" alt="Logo Aplikasi">
-        <h2><span class="highlight">WELCOME TO APLIKASI</span><br>KRIPTOGRAFI<br></h2>
+        <h2><span class="highlight">WELCOME TO APLIKASI</span><br>CRYPTOPEDIA<br></h2>
         <p>Aplikasi ini dibuat untuk membantu pengguna dalam mengenkripsi atau mengamankan data secara efisien dan mudah digunakan.</p>
 
         <a href="login/login.php">
