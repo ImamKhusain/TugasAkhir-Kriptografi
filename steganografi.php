@@ -5,9 +5,9 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login/login.php?pesan=belum_login");
     exit;
 }
-$user_id = $_SESSION['user_id'];
+$user_id  = $_SESSION['user_id'];
 $username = $_SESSION['username'];
-$conn = getDBConnection();
+$conn     = getDBConnection();
 
 $current = basename($_SERVER['PHP_SELF']);
 function is_active($file, $current)
@@ -15,179 +15,242 @@ function is_active($file, $current)
     return $current === $file ? 'active' : '';
 }
 
-/* ==============================
-   Proses EMBED (LSB)
-============================== */
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'embed') {
-    if (isset($_FILES['gambar']) && isset($_POST['pesan'])) {
-        $gambar = $_FILES['gambar'];
-        $pesan  = $_POST['pesan'];
-        $allowed = ['image/png', 'image/jpeg', 'image/jpg'];
+const END_MARKER   = '###END###';
+const ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/jpg'];
 
-        if (in_array($gambar['type'], $allowed)) {
-            $img = ($gambar['type'] == 'image/png')
-                ? @imagecreatefrompng($gambar['tmp_name'])
-                : @imagecreatefromjpeg($gambar['tmp_name']);
+function safeSanitize($s)
+{
+    if (class_exists('SecurityConfig') && method_exists('SecurityConfig', 'sanitizeInput')) {
+        return SecurityConfig::sanitizeInput($s);
+    }
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+}
 
-            if ($img) {
-                $width  = imagesx($img);
-                $height = imagesy($img);
+function detectMime($path)
+{
+    if (!is_file($path)) return null;
+    if (function_exists('finfo_open')) {
+        $f = finfo_open(FILEINFO_MIME_TYPE);
+        $m = finfo_file($f, $path);
+        finfo_close($f);
+        return $m;
+    }
+    return mime_content_type($path);
+}
 
-                $pesan_full = $pesan . '###END###'; // Delimiter
-                $pesan_binary = '';
-                for ($i = 0; $i < strlen($pesan_full); $i++) {
-                    $pesan_binary .= str_pad(decbin(ord($pesan_full[$i])), 8, '0', STR_PAD_LEFT);
+function openImage(string $path, ?string $mime)
+{
+    if (!$mime) $mime = detectMime($path);
+    if ($mime === 'image/png') return @imagecreatefrompng($path);
+    if ($mime === 'image/jpeg' || $mime === 'image/jpg') return @imagecreatefromjpeg($path);
+    return false;
+}
+
+function savePng($img, string $path): bool
+{
+    imagealphablending($img, true);
+    imagesavealpha($img, true);
+    return imagepng($img, $path);
+}
+
+function bytesFromString(string $text): array
+{
+    $out = [];
+    $len = strlen($text);
+    for ($i = 0; $i < $len; $i++) $out[] = ord($text[$i]);
+    return $out;
+}
+
+function embedLSB($img, string $message)
+{
+    $w = imagesx($img);
+    $h = imagesy($img);
+
+    $payload = $message . END_MARKER;
+    $bytes   = bytesFromString($payload);
+    $bits    = [];
+    foreach ($bytes as $byte) {
+        for ($b = 7; $b >= 0; $b--) {
+            $bits[] = ($byte >> $b) & 1;
+        }
+    }
+
+    $capacity = $w * $h * 3;
+    if (count($bits) > $capacity) {
+        return "Pesan terlalu panjang untuk gambar ini! (kapasitas {$capacity} bit, butuh " . count($bits) . " bit)";
+    }
+
+    $k = 0;
+    $total = count($bits);
+    for ($y = 0; $y < $h && $k < $total; $y++) {
+        for ($x = 0; $x < $w && $k < $total; $x++) {
+            $rgb = imagecolorat($img, $x, $y);
+            $r = ($rgb >> 16) & 0xFF;
+            $g = ($rgb >> 8)  & 0xFF;
+            $b =  $rgb        & 0xFF;
+
+            if ($k < $total) {
+                $r = ($r & 0xFE) | $bits[$k++];
+            }
+            if ($k < $total) {
+                $g = ($g & 0xFE) | $bits[$k++];
+            }
+            if ($k < $total) {
+                $b = ($b & 0xFE) | $bits[$k++];
+            }
+
+            $col = imagecolorallocate($img, $r, $g, $b);
+            imagesetpixel($img, $x, $y, $col);
+        }
+    }
+    return true;
+}
+
+function extractLSB($img): string
+{
+    $w = imagesx($img);
+    $h = imagesy($img);
+    $buffer = '';
+    $byte = 0;
+    $bitsIn = 0;
+
+    for ($y = 0; $y < $h; $y++) {
+        for ($x = 0; $x < $w; $x++) {
+            $rgb = imagecolorat($img, $x, $y);
+            $r = ($rgb >> 16) & 0xFF;
+            $g = ($rgb >> 8)  & 0xFF;
+            $b =  $rgb        & 0xFF;
+
+            foreach ([($r & 1), ($g & 1), ($b & 1)] as $bit) {
+                $byte = ($byte << 1) | $bit;
+                $bitsIn++;
+                if ($bitsIn === 8) {
+                    $buffer .= chr($byte);
+                    if (substr($buffer, -strlen(END_MARKER)) === END_MARKER) {
+                        return substr($buffer, 0, -strlen(END_MARKER));
+                    }
+                    $byte = 0;
+                    $bitsIn = 0;
                 }
+            }
+        }
+    }
+    return '';
+}
 
-                $pesan_length = strlen($pesan_binary);
-                $max_capacity = $width * $height * 3;
+function insertStegoRecord(mysqli $conn, int $user_id, string $original_filename, string $stego_filename, string $stego_path, string $message_preview): bool
+{
+    $sql = "INSERT INTO steganografi (user_id, original_filename, stego_filename, stego_path, hidden_message_preview, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('issss', $user_id, $original_filename, $stego_filename, $stego_path, $message_preview);
+    $ok = $stmt->execute();
+    if (!$ok) {
+        error_log('Stego insert error: ' . $stmt->error);
+    }
+    $stmt->close();
+    return $ok;
+}
 
-                if ($pesan_length <= $max_capacity) {
-                    $index = 0;
-                    for ($y = 0; $y < $height && $index < $pesan_length; $y++) {
-                        for ($x = 0; $x < $width && $index < $pesan_length; $x++) {
-                            $rgb = imagecolorat($img, $x, $y);
-                            $r = ($rgb >> 16) & 0xFF;
-                            $g = ($rgb >> 8) & 0xFF;
-                            $b = $rgb & 0xFF;
-                            if ($index < $pesan_length) {
-                                $r = ($r & 0xFE) | intval($pesan_binary[$index]);
-                                $index++;
-                            }
-                            if ($index < $pesan_length) {
-                                $g = ($g & 0xFE) | intval($pesan_binary[$index]);
-                                $index++;
-                            }
-                            if ($index < $pesan_length) {
-                                $b = ($b & 0xFE) | intval($pesan_binary[$index]);
-                                $index++;
-                            }
-                            $new_color = imagecolorallocate($img, $r, $g, $b);
-                            imagesetpixel($img, $x, $y, $new_color);
-                        }
-                    }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'embed') {
+    if (!empty($_FILES['gambar']['tmp_name']) && isset($_POST['pesan'])) {
+        $tmp   = $_FILES['gambar']['tmp_name'];
+        $mime  = detectMime($tmp);
+        $pesan = $_POST['pesan'];
 
-                    $original_filename = SecurityConfig::sanitizeInput($gambar['name']);
-                    $stego_filename = 'stego_' . $user_id . '_' . time() . '.png';
-                    $output_dir = 'uploads/';
-                    $output_path = $output_dir . $stego_filename;
+        if (!in_array($mime, ALLOWED_MIME, true)) {
+            $error_embed = "Format file tidak didukung! Gunakan PNG/JPG.";
+        } else {
+            $img = openImage($tmp, $mime);
+            if (!$img) {
+                $error_embed = "Gagal membaca gambar. Pastikan ekstensi GD aktif.";
+            } else {
+                $embedRes = embedLSB($img, $pesan);
+                if ($embedRes === true) {
+                    $original_filename = safeSanitize($_FILES['gambar']['name']);
+                    $stego_filename    = 'stego_' . $user_id . '_' . time() . '.png';
+                    $output_dir        = 'uploads/';
+                    if (!file_exists($output_dir)) mkdir($output_dir, 0777, true);
+                    $output_path       = $output_dir . $stego_filename;
 
-                    if (!file_exists($output_dir)) {
-                        mkdir($output_dir, 0777, true);
-                    }
-
-                    imagepng($img, $output_path);
+                    savePng($img, $output_path);
                     imagedestroy($img);
 
                     $message_preview = substr($pesan, 0, 100);
 
-                    $stmt = $conn->prepare("INSERT INTO steganografi (user_id, original_filename, stego_filename, stego_path, hidden_message_preview, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
-                    $stmt->bind_param('issss', $user_id, $original_filename, $stego_filename, $output_path, $message_preview);
-
-                    if ($stmt->execute()) {
-
-                        $stmt->close();
+                    // simpan DB
+                    if (!insertStegoRecord($conn, $user_id, $original_filename, $stego_filename, $output_path, $message_preview)) {
+                        $error_embed = "Gagal menyimpan ke database.";
+                        if (is_file($output_path)) unlink($output_path);
+                    } else {
+                        // unduh file & keluar
                         $conn->close();
-
                         header('Content-Description: File Transfer');
                         header('Content-Type: image/png');
                         header('Content-Disposition: attachment; filename="' . basename($stego_filename) . '"');
-                        header('Expires: 0');
-                        header('Cache-Control: must-revalidate');
-                        header('Pragma: public');
                         header('Content-Length: ' . filesize($output_path));
-                        flush();
+                        header('Cache-Control: no-cache, must-revalidate');
+                        header('Pragma: public');
                         readfile($output_path);
                         exit;
-
-                    } else {
-                        $error_embed = "Gagal menyimpan ke database: " . $stmt->error;
-                        unlink($output_path);
                     }
-                    $stmt->close();
                 } else {
-                    $error_embed = "Pesan terlalu panjang untuk gambar ini!";
+                    $error_embed = $embedRes;
+                    imagedestroy($img);
                 }
-            } else {
-                $error_embed = "Gagal membaca gambar.";
             }
-        } else {
-            $error_embed = "Format file tidak didukung! Gunakan PNG/JPG.";
         }
     }
 }
 
-/* ==============================
-   Proses EXTRACT (LSB)
-============================== */
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'extract') {
-    if (isset($_FILES['gambar_extract'])) {
-        $gambar  = $_FILES['gambar_extract'];
-        $allowed = ['image/png', 'image/jpeg', 'image/jpg'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'extract') {
+    if (!empty($_FILES['gambar_extract']['tmp_name'])) {
+        $tmp  = $_FILES['gambar_extract']['tmp_name'];
+        $mime = detectMime($tmp);
 
-        if (in_array($gambar['type'], $allowed)) {
-            $img = ($gambar['type'] == 'image/png')
-                ? @imagecreatefrompng($gambar['tmp_name'])
-                : @imagecreatefromjpeg($gambar['tmp_name']);
-
-            if ($img) {
-                $width  = imagesx($img);
-                $height = imagesy($img);
-                $binary_data = '';
-                $extracted_message = '';
-                $found = false;
-
-                // --- LOOP EFISIEN BARU ---
-                for ($y = 0; $y < $height; $y++) {
-                    for ($x = 0; $x < $width; $x++) {
-                        $rgb = imagecolorat($img, $x, $y);
-                        $r = ($rgb >> 16) & 0xFF;
-                        $g = ($rgb >> 8) & 0xFF;
-                        $b = $rgb & 0xFF; // <-- BUG sebelumnya juga diperbaiki di sini
-
-                        // Ambil LSB dari setiap channel
-                        $binary_data .= ($r & 1);
-                        $binary_data .= ($g & 1);
-                        $binary_data .= ($b & 1);
-
-                        // Jika sudah terkumpul 8 bit, proses menjadi karakter
-                        if (strlen($binary_data) >= 8) {
-                            $byte = substr($binary_data, 0, 8);
-                            $binary_data = substr($binary_data, 8); // Hapus 8 bit yg sudah diproses
-                            $char = chr(bindec($byte));
-                            $extracted_message .= $char;
-
-                            // Cek apakah delimiter ditemukan
-                            if (strpos($extracted_message, '###END###') !== false) {
-                                $extracted_message = str_replace('###END###', '', $extracted_message);
-                                $found = true;
-                                break; // Hentikan loop piksel (kolom)
-                            }
-                        }
-                    }
-                    if ($found) {
-                        break;
-                    }
-                }
-                // --- AKHIR LOOP EFISIEN ---
-
-                imagedestroy($img);
-
-                if ($found && !empty($extracted_message)) {
-                    $success_extract = $extracted_message;
-                } else {
-                    $error_extract = "Tidak ada pesan yang ditemukan dalam gambar ini!";
-                }
-            } else {
-                $error_extract = "Gagal membaca gambar.";
-            }
-        } else {
+        if (!in_array($mime, ALLOWED_MIME, true)) {
             $error_extract = "Format file tidak didukung! Gunakan PNG/JPG.";
+        } else {
+            $img = openImage($tmp, $mime);
+            if (!$img) {
+                $error_extract = "Gagal membaca gambar. Pastikan ekstensi GD aktif.";
+            } else {
+                $msg = extractLSB($img);
+                imagedestroy($img);
+                if ($msg === '') {
+                    $error_extract = "Tidak ada pesan yang ditemukan dalam gambar ini!";
+                } else {
+                    $success_extract = $msg;
+                }
+            }
         }
     }
 }
 
-// Ambil daftar file steganografi
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
+    $delete_id = (int) $_POST['delete_id'];
+
+    $stmt_del = $conn->prepare("SELECT stego_path FROM steganografi WHERE id = ? AND user_id = ?");
+    $stmt_del->bind_param('ii', $delete_id, $user_id);
+    $stmt_del->execute();
+    $res = $stmt_del->get_result();
+    if ($res->num_rows > 0) {
+        $file = $res->fetch_assoc();
+        $path = $file['stego_path'];
+        if (is_file($path)) unlink($path);
+    }
+    $stmt_del->close();
+
+    $stmt_del2 = $conn->prepare("DELETE FROM steganografi WHERE id = ? AND user_id = ?");
+    $stmt_del2->bind_param('ii', $delete_id, $user_id);
+    $stmt_del2->execute();
+    $stmt_del2->close();
+
+    header("Location: steganografi.php");
+    exit;
+}
+
+
 $stmt_list = $conn->prepare("SELECT id, original_filename, stego_filename, stego_path, hidden_message_preview, created_at FROM steganografi WHERE user_id = ? ORDER BY created_at DESC");
 $stmt_list->bind_param('i', $user_id);
 $stmt_list->execute();
@@ -204,24 +267,21 @@ $conn->close();
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-
     <link rel="stylesheet" href="assets/css/fitur.css">
-
 </head>
 
 <body>
-
     <header>
         <div class="header-inner">
             <div class="welcome-text">
                 <a href="dashboard.php">
-                    <h5>Aplikasi Cryptopedia</h5>
+                    <h5>Cryptopedia</h5>
                 </a>
             </div>
             <nav class="nav-center" role="navigation" aria-label="Main navigation">
                 <a href="steganografi.php" class="<?= is_active('steganografi.php', $current); ?>">STEGANOGRAFI</a>
                 <a href="super_enkripsi.php" class="<?= is_active('super_enkripsi.php', $current); ?>">SUPER ENKRIPSI</a>
-                <a href="enkripsi_file.php" class="<?= is_active('enkripsi_file.php', $current); ?>">ENKRIPSI FILE</a>
+                <a href="enkripsi_file.php" class="<?= is_active('enkripsi_file.php',  $current); ?>">ENKRIPSI FILE</a>
             </nav>
             <div class="logout-btn">
                 <a href="login/logout.php" class="btn btn-light btn-sm px-3">LogOut</a>
@@ -236,7 +296,6 @@ $conn->close();
         </div>
 
         <div class="content-card">
-
             <ul class="nav nav-tabs" id="steganografiTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="sembunyikan-tab" data-bs-toggle="tab" data-bs-target="#sembunyikan" type="button" role="tab">
@@ -251,9 +310,8 @@ $conn->close();
             </ul>
 
             <div class="tab-content" id="steganografiTabContent" style="padding-top: 25px;">
-
+                <!-- TAB EMBED -->
                 <div class="tab-pane fade show active" id="sembunyikan" role="tabpanel">
-
                     <?php if (isset($error_embed)): ?>
                         <div class="alert alert-danger"><?= htmlspecialchars($error_embed); ?></div>
                     <?php endif; ?>
@@ -273,17 +331,16 @@ $conn->close();
                                 <img id="imgPreviewEmbed" src="" alt="Preview">
                             </div>
                         </div>
-                        <div class="mb-4">
+                        <div class="mb-2">
                             <label class="form-label">Pesan Rahasia</label>
-                            <textarea class="form-control" name="pesan" id="pesanInput" rows="5" placeholder="Masukkan pesan yang ingin disembunyikan..." required oninput="countChars()"></textarea>
-
+                            <textarea class="form-control" name="pesan" id="pesanInput" rows="5" placeholder="Masukkan pesan yang ingin disembunyikan..." required></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary-custom w-100">Sembunyikan</button>
+                        <button type="submit" class="btn-primary-custom w-100">Sembunyikan</button>
                     </form>
                 </div>
 
+                <!-- TAB EXTRACT -->
                 <div class="tab-pane fade" id="ekstrak" role="tabpanel">
-
                     <h4 class="mb-4" style="font-size: 16px; font-weight: 600;">Ekstrak Pesan dari Gambar</h4>
                     <?php if (isset($error_extract)): ?>
                         <div class="alert alert-danger"><?= htmlspecialchars($error_extract); ?></div>
@@ -307,7 +364,7 @@ $conn->close();
 
                     <?php if (isset($success_extract)): ?>
                         <div class="result-box">
-                            <h5>👁️ Pesan Berhasil Diekstrak</h5>
+                            <h5>Pesan Berhasil Diekstrak</h5>
                             <div class="result-content">
                                 <?= nl2br(htmlspecialchars($success_extract)); ?>
                             </div>
@@ -316,6 +373,7 @@ $conn->close();
                 </div>
             </div>
         </div>
+
         <div class="content-card">
             <h4 class="mb-4">File Steganografi Tersimpan Anda</h4>
             <?php if ($stego_files->num_rows > 0): ?>
@@ -323,7 +381,7 @@ $conn->close();
                     <thead>
                         <tr>
                             <th>File Asli</th>
-                            <th>File Stego (Klik untuk download)</th>
+                            <th>File Stego</th>
                             <th>Tanggal</th>
                             <th>Aksi</th>
                         </tr>
@@ -332,16 +390,16 @@ $conn->close();
                         <?php while ($file = $stego_files->fetch_assoc()): ?>
                             <tr>
                                 <td><?= htmlspecialchars($file['original_filename']); ?></td>
-                                <td>
-                                    <a href="<?= htmlspecialchars($file['stego_path']); ?>" download>
-                                        <?= htmlspecialchars($file['stego_filename']); ?>
-                                    </a>
-                                </td>
+                                <td><?= htmlspecialchars($file['stego_filename']); ?></td>
                                 <td><?= date('d/m/Y H:i', strtotime($file['created_at'])); ?></td>
-                                <td>
-                                    <a href="<?= htmlspecialchars($file['stego_path']); ?>" class="btn btn-success-custom" download>
-                                        📥 Download
+                                <td class="d-flex gap-2">
+                                    <a href="<?= htmlspecialchars($file['stego_path']); ?>" class="btn-success-custom" download>
+                                        Download
                                     </a>
+                                    <form action="" method="POST" onsubmit="return confirm('Yakin ingin menghapus file ini?');">
+                                        <input type="hidden" name="delete_id" value="<?= $file['id']; ?>">
+                                        <button type="submit" class="btn-danger-custom btn-sm">Hapus</button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endwhile; ?>
@@ -351,16 +409,16 @@ $conn->close();
                 <div class="alert alert-info">Belum ada file steganografi yang disimpan.</div>
             <?php endif; ?>
         </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // (JS tidak berubah)
         function previewImage(input, previewId) {
             const preview = document.getElementById(previewId);
-            const img = document.getElementById('imgPreview' + previewId.charAt(7).toUpperCase() + previewId.slice(8));
-            const fileName = document.getElementById('fileName' + previewId.charAt(7).toUpperCase() + previewId.slice(8));
+            const imgId = 'imgPreview' + previewId.replace('preview', '');
+            const nameId = 'fileName' + previewId.replace('preview', '');
+            const img = document.getElementById(imgId);
+            const fileName = document.getElementById(nameId);
 
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
@@ -373,18 +431,15 @@ $conn->close();
             }
         }
 
-        function countChars() {
+        function updateCount() {
             const textarea = document.getElementById('pesanInput');
-            const charCount = document.getElementById('charCount');
-            if (textarea) {
-                charCount.textContent = 'Karakter: ' + (textarea.value.length || 0);
-            }
+            const counter = document.getElementById('charCount');
+            if (textarea && counter) counter.textContent = 'Karakter: ' + (textarea.value.length || 0);
         }
-
         const pesanInput = document.getElementById('pesanInput');
         if (pesanInput) {
-            pesanInput.addEventListener('input', countChars);
-            countChars();
+            pesanInput.addEventListener('input', updateCount);
+            updateCount();
         }
 
         <?php if (isset($success_extract)): ?>

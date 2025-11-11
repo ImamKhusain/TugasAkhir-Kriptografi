@@ -1,9 +1,7 @@
 <?php
 require_once '../config.php';
-$token = generateToken();
 $pesan = ($_GET['pesan'] ?? '') === 'gagal' ? "Username atau password salah!" : "";
 
-// Tambahkan pesan lain
 if (isset($_GET['pesan'])) {
     if ($_GET['pesan'] === 'belum_login') $pesan = "Anda harus login untuk mengakses halaman tersebut!";
     if ($_GET['pesan'] === 'berhasil_reg') $pesan = "Registrasi berhasil! Silakan login.";
@@ -21,7 +19,7 @@ if (isset($_GET['pesan'])) {
 <body>
     <div class="bg">
         <div class="login-container">
-            <h2><span class="highlight">APLIKASI</span><br>KRIPTOGRAFI<br><span class="login-text">Login</span></h2>
+            <h2><span class="highlight"></span><br>CRYPTOPEDIA<br><span class="login-text">Login</span></h2>
 
             <?php if (!empty($pesan)): ?>
                 <div class="error-box <?= (strpos($pesan, 'berhasil') !== false) ? 'success-box' : ''; ?>">
@@ -30,7 +28,6 @@ if (isset($_GET['pesan'])) {
             <?php endif; ?>
 
             <form action="proseslogin.php" method="POST">
-                <input type="hidden" name="csrf_token" value="<?= $token ?>">
                 <label>Username</label>
                 <input type="text" name="username" placeholder="Username" required>
                 <label>Password</label>

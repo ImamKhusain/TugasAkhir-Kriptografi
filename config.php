@@ -39,18 +39,6 @@ class SecurityConfig {
 
 SecurityConfig::secureSession();
 
-// CSRF Token
-function generateToken() {
-    if (!isset($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['csrf_token'];
-}
-
-function verifyToken($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
-}
-
 function getDBConnection() {
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
     if ($conn->connect_error) {
@@ -58,6 +46,8 @@ function getDBConnection() {
     }
     return $conn;
 }
+
+// Super Enkripsi
 
 function railFenceEncrypt($text, $rails = 3) {
     if ($rails <= 1) return $text;
@@ -130,6 +120,8 @@ function superDecrypt($cipher, $rails = 3) {
     return railFenceDecrypt($chachaDecrypted, $rails);
 }
 
+// Enkripsi File
+
 function fileEncryptAES256($data, $password) {
     $salt = random_bytes(16);
     $key = hash_pbkdf2("sha256", $password, $salt, 10000, 32, true);
@@ -154,17 +146,16 @@ function fileDecryptAES256($encrypted_data, $password) {
     return openssl_decrypt($encrypted, 'aes-256-ctr', $key, OPENSSL_RAW_DATA, $iv);
 }
 
-/**
- * Mengenkripsi data kolom DB menggunakan AES-128-GCM (Mode AEAD).
- */
+// Enkripsi DB
+
 function dbEncryptAES128($plaintext, $key = DB_ENCRYPTION_KEY) {
     if (mb_strlen($key, '8bit') !== 16) {
         throw new Exception("Kunci harus tepat 16 byte untuk AES-128.");
     }
     
-    $iv_len = openssl_cipher_iv_length(AES128_GCM_METHOD); // 12 bytes
+    $iv_len = openssl_cipher_iv_length(AES128_GCM_METHOD);
     $iv = random_bytes($iv_len);
-    $tag = ""; // Diisi oleh openssl_encrypt
+    $tag = "";
     
     $ciphertext = openssl_encrypt(
         $plaintext,
@@ -172,16 +163,12 @@ function dbEncryptAES128($plaintext, $key = DB_ENCRYPTION_KEY) {
         $key,
         OPENSSL_RAW_DATA,
         $iv,
-        $tag // Tag autentikasi (penting untuk GCM)
+        $tag
     );
-    
-    // Gabungkan iv + ciphertext + tag untuk disimpan
+
     return base64_encode($iv . $ciphertext . $tag);
 }
 
-/**
- * Mendekripsi data kolom DB (AES-128-GCM).
- */
 function dbDecryptAES128($encrypted_data, $key = DB_ENCRYPTION_KEY) {
     if (mb_strlen($key, '8bit') !== 16) {
         throw new Exception("Kunci harus tepat 16 byte untuk AES-128.");
@@ -190,8 +177,8 @@ function dbDecryptAES128($encrypted_data, $key = DB_ENCRYPTION_KEY) {
     $data = base64_decode($encrypted_data);
     if ($data === false) return false;
     
-    $iv_len = openssl_cipher_iv_length(AES128_GCM_METHOD); // 12 bytes
-    $tag_len = 16; // GCM tag
+    $iv_len = openssl_cipher_iv_length(AES128_GCM_METHOD);
+    $tag_len = 16;
     
     if (strlen($data) < $iv_len + $tag_len) return false;
     
@@ -205,10 +192,10 @@ function dbDecryptAES128($encrypted_data, $key = DB_ENCRYPTION_KEY) {
         $key,
         OPENSSL_RAW_DATA,
         $iv,
-        $tag // Verifikasi tag
+        $tag
     );
     
-    return $plaintext; // Akan return false jika tag tidak cocok
+    return $plaintext;
 }
 
 ?>

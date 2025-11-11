@@ -1,12 +1,15 @@
 <?php
 require_once '../config.php';
-$token = generateToken();
 
-$pesan = "";
-if (isset($_GET['pesan'])) {
-    if ($_GET['pesan'] === 'gagal') $pesan = "Registrasi gagal! Pastikan password kuat & username belum digunakan.";
-    if ($_GET['pesan'] === 'gagal_hash') $pesan = "Registrasi gagal! Server tidak dikonfigurasi untuk Argon2i.";
-}
+$code = $_GET['pesan'] ?? '';
+$map = [
+    'gagal'           => 'Registrasi gagal! Pastikan password kuat & username belum digunakan.',
+    'gagal_hash'      => 'Registrasi gagal! Server tidak dikonfigurasi untuk Argon2i.',
+    'gagal_validasi'  => 'Password tidak memenuhi kriteria (min 8, ada angka & simbol).',
+    'gagal_username'  => 'Username sudah digunakan.',
+    'gagal_db'        => 'Terjadi kesalahan saat menyimpan ke database.',
+];
+$pesan = $map[$code] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -24,7 +27,6 @@ if (isset($_GET['pesan'])) {
             <?php if ($pesan): ?><div class="error-box"><?= htmlspecialchars($pesan) ?></div><?php endif; ?>
 
             <form action="prosesregister.php" method="POST">
-                <input type="hidden" name="csrf_token" value="<?= $token ?>">
                 <label>Username</label>
                 <input type="text" name="username" placeholder="Username" required>
                 <label>Password</label>

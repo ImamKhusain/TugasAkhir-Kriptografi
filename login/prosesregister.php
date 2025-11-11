@@ -2,8 +2,6 @@
 require_once '../config.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $token = $_POST['csrf_token'] ?? '';
-    if (!verifyToken($token)) die('Token tidak valid!');
 
     $conn = getDBConnection();
 

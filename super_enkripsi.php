@@ -14,7 +14,6 @@ $encrypted_message_display = '';
 $decrypted_message = '';
 $error_decrypt = '';
 
-// Fungsi aktif link
 $current = basename($_SERVER['PHP_SELF']);
 function is_active($file, $current)
 {
@@ -33,7 +32,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['encrypt'])) {
         $encrypted_message = superEncrypt($pesan, $rails);
         $encrypted_message_display = $encrypted_message;
 
-        // Simpan ke database (Sesuai struktur baru)
         $stmt = $conn->prepare("INSERT INTO encrypted_messages (user_id, title, encrypted_message, rails, created_at) VALUES (?, ?, ?, ?, NOW())");
         $stmt->bind_param('issi', $user_id, $title, $encrypted_message, $rails);
 
@@ -48,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['encrypt'])) {
     }
 }
 
-// Proses Dekripsi (Tab Dekripsi)
+// Proses Dekripsi
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['decrypt'])) {
     $cipher_text = $_POST['cipher_text'] ?? '';
     $rails_decrypt = intval($_POST['rails_decrypt'] ?? 3);
@@ -93,7 +91,7 @@ $conn->close();
         <div class="header-inner">
             <div class="welcome-text">
                 <a href="dashboard.php">
-                    <h5>Aplikasi Cryptopedia</h5>
+                    <h5>Cryptopedia</h5>
                 </a>
             </div>
             <nav class="nav-center">
@@ -149,7 +147,7 @@ $conn->close();
                                 <?php endfor; ?>
                             </select>
                         </div>
-                        <button type="submit" name="encrypt" class="btn-custom w-100">Enkripsi</button>
+                        <button type="submit" name="encrypt" class="btn-primary-custom w-100">Enkripsi</button>
                     </form>
 
                     <?php if (!empty($encrypted_message_display)): ?>
