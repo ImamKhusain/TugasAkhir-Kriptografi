@@ -16,14 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($nama_lengkap === '' || $peran === '' || $tujuan === '') {
         die("Semua data wajib diisi.");
     }
-
     $nama_terenkripsi   = dbEncryptAES128($nama_lengkap, DB_ENCRYPTION_KEY);
-    $peran_terenkripsi  = dbEncryptAES128($peran, DB_ENCRYPTION_KEY);
     $tujuan_terenkripsi = dbEncryptAES128($tujuan, DB_ENCRYPTION_KEY);
 
     $conn = getDBConnection();
+    
     $stmt = $conn->prepare("UPDATE users SET nama_lengkap = ?, peran = ?, tujuan = ? WHERE id = ?");
-    $stmt->bind_param("sssi", $nama_terenkripsi, $peran_terenkripsi, $tujuan_terenkripsi, $user_id);
+    $stmt->bind_param("sssi", $nama_terenkripsi, $peran, $tujuan_terenkripsi, $user_id);
 
     if ($stmt->execute()) {
         $stmt->close();

@@ -7,8 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $username = SecurityConfig::sanitizeInput($_POST['username']);
     $password = SecurityConfig::sanitizeInput($_POST['password']);
-    
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username=? AND is_active=1");
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username=?");
     $stmt->bind_param('s', $username);
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
@@ -24,16 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updateHash->close();
         }
 
-        // Login sukses
         session_regenerate_id(true); 
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
 
-        $update = $conn->prepare("UPDATE users SET last_login=NOW() WHERE username=?");
-        $update->bind_param('s', $username);
-        $update->execute();
-        $update->close();
-        
         $conn->close();
         header('Location: ../dashboard.php?pesan=login');
         exit;

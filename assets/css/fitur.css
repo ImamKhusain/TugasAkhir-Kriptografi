@@ -254,6 +254,7 @@ textarea.form-control { min-height: 120px; }
   background: var(--primary);
   border: none;
   border-radius: 10px;
+  text-decoration: none;
   transition: .3s;
 }
 .btn-primary-custom:hover {

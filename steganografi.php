@@ -178,21 +178,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'embed
 
                     $message_preview = substr($pesan, 0, 100);
 
-                    // simpan DB
                     if (!insertStegoRecord($conn, $user_id, $original_filename, $stego_filename, $output_path, $message_preview)) {
                         $error_embed = "Gagal menyimpan ke database.";
                         if (is_file($output_path)) unlink($output_path);
                     } else {
-                        // unduh file & keluar
-                        $conn->close();
-                        header('Content-Description: File Transfer');
-                        header('Content-Type: image/png');
-                        header('Content-Disposition: attachment; filename="' . basename($stego_filename) . '"');
-                        header('Content-Length: ' . filesize($output_path));
-                        header('Cache-Control: no-cache, must-revalidate');
-                        header('Pragma: public');
-                        readfile($output_path);
-                        exit;
+                        $success_embed = "Pesan berhasil disembunyikan! File '" . htmlspecialchars($stego_filename) . "' telah disimpan.";
                     }
                 } else {
                     $error_embed = $embedRes;
@@ -310,10 +300,13 @@ $conn->close();
             </ul>
 
             <div class="tab-content" id="steganografiTabContent" style="padding-top: 25px;">
-                <!-- TAB EMBED -->
                 <div class="tab-pane fade show active" id="sembunyikan" role="tabpanel">
                     <?php if (isset($error_embed)): ?>
                         <div class="alert alert-danger"><?= htmlspecialchars($error_embed); ?></div>
+                    <?php endif; ?>
+
+                    <?php if (isset($success_embed)): ?>
+                        <div class="alert alert-success"><?= htmlspecialchars($success_embed); ?></div>
                     <?php endif; ?>
 
                     <h4 class="mb-4" style="font-size: 16px; font-weight: 600;">Sembunyikan Pesan dalam Gambar</h4>
@@ -339,7 +332,6 @@ $conn->close();
                     </form>
                 </div>
 
-                <!-- TAB EXTRACT -->
                 <div class="tab-pane fade" id="ekstrak" role="tabpanel">
                     <h4 class="mb-4" style="font-size: 16px; font-weight: 600;">Ekstrak Pesan dari Gambar</h4>
                     <?php if (isset($error_extract)): ?>

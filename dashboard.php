@@ -92,51 +92,49 @@ function is_active($file, $current)
         </div>
 
         <div class="features-grid">
-            <div class="feature-card">
+            <div class="feature-card text-center">
                 <div class="feature-icon">🖼️</div>
                 <h3>Steganografi</h3>
                 <p>Sembunyikan pesan rahasia di dalam gambar tanpa menimbulkan kecurigaan. Teknik menyisipkan data ke dalam media digital dengan aman.</p>
-                <a href="steganografi.php" class="feature-btn">Mulai Sekarang</a>
+
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="steganografi.php" class="btn btn-primary"> Mulai Sekarang
+                    </a>
+                    <a href="teori_steganografi.php" class="btn btn-outline-dark">
+                        Pelajari Teori
+                    </a>
+                </div>
             </div>
 
-            <div class="feature-card">
+            <div class="feature-card text-center">
                 <div class="feature-icon">🔐</div>
                 <h3>Super Enkripsi</h3>
                 <p>Enkripsi berlapis untuk keamanan maksimal. Kombinasi algoritma kriptografi untuk perlindungan data yang lebih kuat dan terpercaya.</p>
-                <a href="super_enkripsi.php" class="feature-btn">Mulai Sekarang</a>
+
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="super_enkripsi.php" class="btn btn-success">
+                        Mulai Sekarang
+                    </a>
+                    <a href="teori_superenkripsi.php" class="btn btn-outline-dark">
+                        Pelajari Teori
+                    </a>
+                </div>
             </div>
 
-            <div class="feature-card">
+            <div class="feature-card text-center">
                 <div class="feature-icon">📁</div>
                 <h3>Enkripsi File</h3>
                 <p>Enkripsi berbagai jenis file dan dokumen penting. Lindungi data Anda dengan password yang aman dan sistem enkripsi terjamin.</p>
-                <a href="enkripsi_file.php" class="feature-btn">Mulai Sekarang</a>
-            </div>
-        </div>
 
-        <div class="getting-started">
-            <h3>Cara Memulai</h3>
-            <div class="getting-started-content">
-                <div class="step-box">
-                    <span class="step-number">1</span>
-                    <h5>Pilih Fitur</h5>
-                    <p>Pilih salah satu fitur yang sesuai dengan kebutuhan Anda: Steganografi, Super Enkripsi, atau Enkripsi File.</p>
-                </div>
-
-                <div class="step-box">
-                    <span class="step-number">2</span>
-                    <h5>Upload Data</h5>
-                    <p>Upload file atau masukkan teks yang ingin Anda enkripsi atau sembunyikan dengan aman.</p>
-                </div>
-
-                <div class="step-box">
-                    <span class="step-number">3</span>
-                    <h5>Proses & Download</h5>
-                    <p>Klik tombol proses, tunggu beberapa saat, dan download hasil enkripsi atau steganografi Anda.</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a href="enkripsi_file.php" class="btn btn-danger"> Mulai Sekarang
+                    </a>
+                    <a href="teori_enkripsifile.php" class="btn btn-outline-dark">
+                        Pelajari Teori
+                    </a>
                 </div>
             </div>
         </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

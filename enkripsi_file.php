@@ -47,10 +47,10 @@ function act_encrypt($user_id): ?string
     $f = $_FILES['file'];
     if ($f['error'] !== UPLOAD_ERR_OK) return "Error upload file!";
 
-    $password  = (string)$_POST['password'];
-    $filename  = $f['name'];
-    $file_type = $f['type'];
-    $bytes     = file_get_contents($f['tmp_name']);
+    $password   = (string)$_POST['password'];
+    $filename   = $f['name'];
+    $file_type  = $f['type'];
+    $bytes      = file_get_contents($f['tmp_name']);
     if ($bytes === false) return "Tidak bisa membaca file.";
 
     try {
@@ -58,7 +58,7 @@ function act_encrypt($user_id): ?string
         if (!$enc_b64) return "Gagal mengenkripsi file.";
 
         $stmt = db()->prepare("INSERT INTO encrypted_files (user_id, filename, encrypted_content, file_type, created_at)
-                               VALUES (?, ?, ?, ?, NOW())");
+                                VALUES (?, ?, ?, ?, NOW())");
         $stmt->bind_param('isss', $user_id, $filename, $enc_b64, $file_type);
         if (!$stmt->execute()) {
             $err = $stmt->error;
@@ -66,10 +66,6 @@ function act_encrypt($user_id): ?string
             return "Gagal menyimpan ke database: $err";
         }
         $stmt->close();
-
-        $binary = base64_decode($enc_b64);
-        close_db();
-        force_download($binary, $filename, $file_type);
         return null;
     } catch (Throwable $e) {
         return "Error enkripsi: " . $e->getMessage();
@@ -119,13 +115,45 @@ function act_delete($user_id)
     exit;
 }
 
-$error_encrypt = $error_decrypt = null;
+function act_download_encrypted($user_id)
+{
+    $id = (int)($_GET['download'] ?? 0);
+    if ($id <= 0) return;
+
+    $stmt = db()->prepare("SELECT filename, encrypted_content FROM encrypted_files WHERE id=? AND user_id=?");
+    $stmt->bind_param('ii', $id, $user_id);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($res) {
+        $binary_data = base64_decode($res['encrypted_content']);
+        if ($binary_data === false) {
+            return;
+        }
+        close_db();
+        force_download($binary_data, $res['filename']);
+    }
+}
+
+
+$error_encrypt = $error_decrypt = $success_encrypt = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    if ($action === 'encrypt') $error_encrypt = act_encrypt($user_id);
+    
+    if ($action === 'encrypt') {
+        $error_encrypt = act_encrypt($user_id);
+        if ($error_encrypt === null) {
+            $success_encrypt = "File berhasil dienkripsi! File kini tersimpan di daftar di bawah.";
+        }
+    }
+
     if ($action === 'decrypt') $error_decrypt = act_decrypt($user_id);
 }
+
 if (isset($_GET['delete'])) act_delete($user_id);
+if (isset($_GET['download'])) act_download_encrypted($user_id);
+
 
 $stmt = db()->prepare("SELECT id, filename, file_type, created_at FROM encrypted_files WHERE user_id=? ORDER BY created_at DESC");
 $stmt->bind_param('i', $user_id);
@@ -167,7 +195,9 @@ $stmt->close();
         </div>
 
         <div class="content-card">
-            <?php if ($error_encrypt): ?><div class="alert alert-danger"><?= $error_encrypt ?></div><?php endif; ?>
+            <?php if ($error_encrypt): ?><div class="alert alert-danger"><?= htmlspecialchars($error_encrypt) ?></div><?php endif; ?>
+            <?php if ($success_encrypt): ?><div class="alert alert-success"><?= htmlspecialchars($success_encrypt) ?></div><?php endif; ?>
+            
             <h4 class="mb-4">Upload & Enkripsi File</h4>
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="encrypt">
@@ -180,7 +210,7 @@ $stmt->close();
 
         <div class="content-card">
             <h4 class="mb-4">File Terenkripsi Anda</h4>
-            <?php if ($error_decrypt): ?><div class="alert alert-danger"><?= $error_decrypt ?></div><?php endif; ?>
+            <?php if ($error_decrypt): ?><div class="alert alert-danger"><?= htmlspecialchars($error_decrypt) ?></div><?php endif; ?>
             <?php if (isset($_GET['pesan']) && $_GET['pesan'] === 'deleted'): ?><div class="alert alert-success">File berhasil dihapus!</div><?php endif; ?>
 
             <?php if ($files->num_rows > 0): ?>
@@ -188,7 +218,6 @@ $stmt->close();
                     <thead>
                         <tr>
                             <th>Nama File</th>
-                            <th>Tipe</th>
                             <th>Tanggal</th>
                             <th>Aksi</th>
                         </tr>
@@ -197,9 +226,10 @@ $stmt->close();
                         <?php while ($f = $files->fetch_assoc()): ?>
                             <tr>
                                 <td><?= htmlspecialchars($f['filename']) ?></td>
-                                <td><?= htmlspecialchars($f['file_type']) ?></td>
                                 <td><?= date('d/m/Y H:i', strtotime($f['created_at'])) ?></td>
-                                <td>
+                                
+                                <td class="d-flex gap-2">
+                                    <a href="?download=<?= $f['id'] ?>" class="btn-primary-custom btn-sm">Download</a>
                                     <button class="btn-success-custom btn-sm" onclick="showDecryptModal(<?= $f['id'] ?>,'<?= htmlspecialchars($f['filename'], ENT_QUOTES) ?>')">Dekripsi</button>
                                     <a href="?delete=<?= $f['id'] ?>" class="btn-danger-custom btn-sm" onclick="return confirm('Yakin hapus file ini?')">Hapus</a>
                                 </td>
@@ -224,7 +254,7 @@ $stmt->close();
                         <p>File: <strong id="decrypt_filename"></strong></p>
                         <div class="mb-3"><label class="form-label">Masukkan Password</label><input type="password" class="form-control" name="password_decrypt" required></div>
                     </div>
-                    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-success-custom">Dekripsi & Download</button></div>
+                    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn-success-custom">Dekripsi & Download</button></div>
                 </form>
             </div>
         </div>
